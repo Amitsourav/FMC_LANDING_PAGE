@@ -7,8 +7,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
-  <base href="https://landing.fundmycampus.com/">
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Set base URL for assets when served via rewrite
+    (function() {
+      if (window.location.hostname !== 'landing.fundmycampus.com' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        var base = document.createElement('base');
+        base.href = 'https://landing.fundmycampus.com/';
+        document.head.appendChild(base);
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -52,17 +61,6 @@
           </div>
         </div>
 
-        <div class="partner-strip">
-          <span class="partner-label">Trusted Banking Partners</span>
-          <div class="partner-logos">
-            <span class="partner-tag">ICICI</span>
-            <span class="partner-tag">Axis Bank</span>
-            <span class="partner-tag">SBI</span>
-            <span class="partner-tag">Credila</span>
-            <span class="partner-tag">Avanse</span>
-            <span class="partner-tag">+7 more</span>
-          </div>
-        </div>
       </div>
 
       <div class="form-card">
@@ -100,6 +98,40 @@
 
     </div>
   </main>
+
+  <!-- Banking Partners Carousel -->
+  <section class="partner-strip">
+    <span class="partner-label">Trusted by 12+ Banking Partners</span>
+    <div class="partner-carousel">
+      <div class="partner-track">
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/poonawala.jpeg" alt="Poonawalla">Poonawalla</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/icici.jpeg" alt="ICICI Bank">ICICI Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/Axis.png" alt="Axis Bank">Axis Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/credila.png" alt="Credila">Credila</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/pnb.png" alt="PNB">PNB</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/union.jpeg" alt="Union Bank">Union Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/idfc.png" alt="IDFC First">IDFC First</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/yes.png" alt="Yes Bank">Yes Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/avanse.png" alt="Avanse">Avanse</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/tata.png" alt="Tata Capital">Tata Capital</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/auxilo.png" alt="Auxilo">Auxilo</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/prodigy.png" alt="Prodigy Finance">Prodigy Finance</span>
+        <!-- Duplicate for seamless loop -->
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/poonawala.jpeg" alt="Poonawalla">Poonawalla</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/icici.jpeg" alt="ICICI Bank">ICICI Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/Axis.png" alt="Axis Bank">Axis Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/credila.png" alt="Credila">Credila</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/pnb.png" alt="PNB">PNB</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/union.jpeg" alt="Union Bank">Union Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/idfc.png" alt="IDFC First">IDFC First</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/yes.png" alt="Yes Bank">Yes Bank</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/avanse.png" alt="Avanse">Avanse</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/tata.png" alt="Tata Capital">Tata Capital</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/auxilo.png" alt="Auxilo">Auxilo</span>
+        <span class="partner-tag"><img src="https://www.fundmycampus.com/images/banks/prodigy.png" alt="Prodigy Finance">Prodigy Finance</span>
+      </div>
+    </div>
+  </section>
 
   <!-- Section 1: Interactive India Map -->
   <section class="map-section" id="explore-map">

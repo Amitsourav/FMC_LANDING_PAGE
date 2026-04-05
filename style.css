@@ -167,8 +167,12 @@ body {
 
 /* ── Partner Strip ── */
 .partner-strip {
-  border-top: 1px solid #E5E7EB;
-  padding-top: 24px;
+  padding: 0 0 32px;
+  background: #FFFFFF;
+  overflow: hidden;
+  margin-top: -40px;
+  position: relative;
+  z-index: 1;
 }
 
 .partner-label {
@@ -178,23 +182,49 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  text-align: center;
 }
 
-.partner-logos {
+.partner-carousel {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+.partner-track {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 14px;
+  animation: partner-scroll 30s linear infinite;
+  width: max-content;
+  flex-wrap: nowrap;
 }
 
 .partner-tag {
-  padding: 5px 12px;
-  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #1C1C1C;
-  background: #FAFAFA;
+  background: #FFFFFF;
   border: 1px solid #E5E7EB;
+  border-radius: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.partner-tag img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
   border-radius: 6px;
+}
+
+@keyframes partner-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 /* ── Form Card ── */
