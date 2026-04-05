@@ -4,20 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FundMyCampus — Education Financing Made Simple</title>
+  <script>
+    // Set base URL for assets when served via rewrite — must run before any resource loads
+    (function() {
+      var h = window.location.hostname;
+      if (h !== 'landing.fundmycampus.com' && h !== 'localhost' && h !== '127.0.0.1') {
+        document.write('<base href="https://landing.fundmycampus.com/">');
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script>
-    // Set base URL for assets when served via rewrite
-    (function() {
-      if (window.location.hostname !== 'landing.fundmycampus.com' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        var base = document.createElement('base');
-        base.href = 'https://landing.fundmycampus.com/';
-        document.head.appendChild(base);
-      }
-    })();
-  </script>
 </head>
 <body>
 
@@ -80,6 +79,22 @@
           <div class="field">
             <label for="phone">Phone Number</label>
             <input type="tel" id="phone" name="phone" placeholder="+91 98765 43210" required>
+          </div>
+          <div class="field">
+            <label for="loan-status">Education Loan Status</label>
+            <select id="loan-status" name="loan_status" required>
+              <option value="" disabled selected>Select your status</option>
+              <option value="need_loan">Finalized college and need call back for education loan</option>
+              <option value="already_taken">Already taken loan</option>
+              <option value="awaiting_calls">Still awaiting calls for better colleges</option>
+              <option value="self_funding">Self funding</option>
+            </select>
+          </div>
+          <div class="consent-box">
+            <label class="consent-label">
+              <input type="checkbox" id="consent" name="consent" required>
+              <span>I consent to be contacted via calls and messages by education lenders and FundMyCampus regarding my loan application and related services.</span>
+            </label>
           </div>
           <button type="submit" class="btn-submit">Get Free Consultation</button>
           <p class="disclaimer">

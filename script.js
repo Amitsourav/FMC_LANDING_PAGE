@@ -10,6 +10,7 @@ document.getElementById('signup-form').addEventListener('submit', function (e) {
   var name = form.querySelector('#name').value.trim();
   var email = form.querySelector('#email').value.trim();
   var phone = form.querySelector('#phone').value.trim();
+  var loanStatus = form.querySelector('#loan-status').value;
 
   // Disable button while submitting
   submitBtn.disabled = true;
@@ -18,7 +19,7 @@ document.getElementById('signup-form').addEventListener('submit', function (e) {
   fetch(API_URL + '/api/landing-leads', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, email: email, phone: phone, source: 'landing_page' })
+    body: JSON.stringify({ name: name, email: email, phone: phone, loan_status: loanStatus, source: 'landing_page' })
   })
     .then(function (res) {
       if (!res.ok) throw new Error('Failed');
