@@ -139,7 +139,7 @@ body {
 .hero-content p {
   font-size: 1rem;
   line-height: 1.65;
-  color: #9CA3AF;
+  color: #6B7280;
   max-width: 500px;
   margin-bottom: 24px;
 }
@@ -164,7 +164,7 @@ body {
 
 .badge span {
   font-size: 0.8rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-top: 2px;
   font-weight: 500;
 }
@@ -181,7 +181,7 @@ body {
 .partner-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #9CA3AF;
+  color: #6B7280;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   display: block;
@@ -256,7 +256,7 @@ body {
 
 .form-header p {
   font-size: 0.9rem;
-  color: #9CA3AF;
+  color: #6B7280;
   line-height: 1.5;
 }
 
@@ -294,7 +294,7 @@ body {
 }
 
 .field input::placeholder {
-  color: #9CA3AF;
+  color: #6B7280;
 }
 
 .field input:focus {
@@ -359,7 +359,7 @@ body {
   gap: 6px;
   text-align: center;
   font-size: 0.78rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-top: 14px;
 }
 
@@ -386,7 +386,7 @@ body {
 
 .success-message p {
   font-size: 0.95rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-top: 8px;
   line-height: 1.5;
 }
@@ -408,7 +408,7 @@ body {
 
 .section-header p {
   font-size: 1rem;
-  color: #9CA3AF;
+  color: #6B7280;
   max-width: 520px;
   margin: 0 auto;
 }
@@ -478,7 +478,7 @@ body {
 .state-list-total {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #9CA3AF;
+  color: #6B7280;
 }
 
 .state-list {
@@ -603,7 +603,7 @@ body {
 
 .sidebar-college-city {
   font-size: 0.75rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-top: 2px;
 }
 
@@ -675,7 +675,7 @@ body {
   height: 40px;
   font-size: 0.8rem;
   font-weight: 800;
-  color: #9CA3AF;
+  color: #6B7280;
   background: #E5E7EB;
   border-radius: 50%;
   flex-shrink: 0;
@@ -707,7 +707,7 @@ body {
 }
 
 .slot-search::placeholder {
-  color: #9CA3AF;
+  color: #6B7280;
 }
 
 .slot-search:focus {
@@ -749,7 +749,7 @@ body {
 
 .slot-dropdown-item small {
   display: block;
-  color: #9CA3AF;
+  color: #6B7280;
   font-size: 0.75rem;
   margin-top: 1px;
 }
@@ -771,7 +771,7 @@ body {
   background: none;
   border: none;
   font-size: 1.2rem;
-  color: #9CA3AF;
+  color: #6B7280;
   cursor: pointer;
   line-height: 1;
 }
@@ -790,7 +790,7 @@ body {
 
 .slot-info {
   font-size: 0.8rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-bottom: 12px;
 }
 
@@ -875,7 +875,7 @@ body {
 .filter-group label {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #9CA3AF;
+  color: #6B7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -913,7 +913,7 @@ body {
   font-size: 0.88rem;
   font-family: inherit;
   font-weight: 600;
-  color: #9CA3AF;
+  color: #6B7280;
   background: #FFFFFF;
   border: 1.5px solid #E5E7EB;
   border-radius: 8px;
@@ -928,7 +928,7 @@ body {
 
 .filter-stats {
   font-size: 0.85rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-bottom: 20px;
 }
 
@@ -978,7 +978,7 @@ body {
 
 .filter-card-meta {
   font-size: 0.78rem;
-  color: #9CA3AF;
+  color: #6B7280;
   margin-top: 2px;
 }
 
@@ -1100,7 +1100,7 @@ body {
 
 .feature span {
   font-size: 0.78rem;
-  color: #9CA3AF;
+  color: #6B7280;
 }
 
 /* ── CTA Banner ── */
@@ -1407,7 +1407,7 @@ body {
 
 .optional {
   font-weight: 500;
-  color: #9CA3AF;
+  color: #6B7280;
   font-size: 0.8em;
 }
 
@@ -2883,7 +2883,7 @@ input:focus-visible {
   text-align: center;
   font-size: 0.84rem;
   line-height: 1.5;
-  color: #9CA3AF;
+  color: #6B7280;
   border: 1.5px dashed #D1D5DB;
   border-radius: 14px;
   background: #FFFFFF;
@@ -3666,4 +3666,17 @@ input:focus-visible {
 .route-icon {
   width: 68px;
   height: 68px;
+}
+
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.logo-img,
+.footer-logo {
+  width: auto;
 }

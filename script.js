@@ -27,6 +27,31 @@ function norm(str) {
     .trim();
 }
 
+// Common abbreviations students type. Expands the search query only — it never
+// selects or merges an institution; the student still picks the exact campus.
+var SEARCH_ALIASES = {
+  aiims: 'all india institute of medical sciences',
+  kmc: 'kasturba medical college',
+  cmc: 'christian medical college',
+  mamc: 'maulana azad medical college',
+  afmc: 'armed forces medical college',
+  jipmer: 'jawaharlal institute of postgraduate medical education',
+  gmc: 'government medical college',
+  gdc: 'government dental college',
+  bhu: 'banaras hindu university',
+  amu: 'aligarh muslim university',
+  pgimer: 'post graduate institute of medical education',
+  kgmu: 'king george s medical university',
+  lhmc: 'lady hardinge medical college',
+  ucms: 'university college of medical sciences'
+};
+
+function searchTokens(q) {
+  return norm(q).split(' ').reduce(function (out, t) {
+    return out.concat(SEARCH_ALIASES[t] ? SEARCH_ALIASES[t].split(' ') : t ? [t] : []);
+  }, []);
+}
+
 function track(event, params) {
   // Category-level events only — never names, phone, scores or income.
   try {
@@ -215,7 +240,7 @@ var Checker = (function () {
     var q = norm(searchInput.value);
     var st = stateFilter.value, dir = dirFilter.value;
     if (q.length < 2) { matches = []; return; }
-    var tokens = q.split(' ');
+    var tokens = searchTokens(q);
     var starts = [], rest = [];
     for (var i = 0; i < INST.length; i++) {
       var r = INST[i];
@@ -868,6 +893,7 @@ var Lead = (function () {
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     errEl.hidden = true;
+    if (form.querySelector('[name="company"]').value) return; // honeypot filled → bot
     var name = $('lead-name').value.trim();
     var phone = $('lead-phone').value.replace(/\D/g, '');
     var email = $('lead-email').value.trim();
@@ -930,6 +956,15 @@ var Lead = (function () {
 })();
 
 // ═══════════════════════════════════════
+// 2a. CAMPAIGN EXPIRY — static copy follows the same IST cut-off as the engine
+// ═══════════════════════════════════════
+(function () {
+  if (typeof LoanEngine === 'undefined' || LoanEngine.campaign({}).active) return;
+  document.querySelectorAll('.campaign-only').forEach(function (el) { el.hidden = true; });
+  document.querySelectorAll('.campaign-expired').forEach(function (el) { el.hidden = false; });
+})();
+
+// ═══════════════════════════════════════
 // 2b. HERO CALLBACK FORM — quick lead, no checker needed
 // ═══════════════════════════════════════
 (function () {
@@ -947,6 +982,7 @@ var Lead = (function () {
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     errEl.hidden = true;
+    if (form.querySelector('[name="company"]').value) return; // honeypot filled → bot
     var name = $('hl-name').value.trim();
     var phone = $('hl-phone').value.replace(/\D/g, '');
     var email = $('hl-email').value.trim();
@@ -1318,7 +1354,7 @@ var Lead = (function () {
       debounce = setTimeout(function () {
         var q = norm(searchInput.value);
         if (q.length < 2) { dropdown.hidden = true; return; }
-        var tokens = q.split(' ');
+        var tokens = searchTokens(q);
 
         var matches = MAP_COLLEGES.filter(function (c) {
           return tokens.every(function (t) { return c.key.indexOf(t) >= 0; });

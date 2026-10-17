@@ -12,7 +12,7 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 - API: `https://api.fundmycampus.com/api/landing-leads` (source `medical_loan_checker`)
 
 ## URLs
-- **Intended canonical:** `https://www.fundmycampus.com/medical-education-loan` (spec §14) — needs a main-site rewrite; not live yet
+- **Canonical (current):** `https://landing.fundmycampus.com/` — temporary, because `/medical-education-loan` returns 404 on the main site. When the main-site rewrite exists, switch canonical, `og:url`, JSON-LD URLs, `robots.txt` and `sitemap.xml` to it and 301 the subdomain.
 - **Direct URL:** `landing.fundmycampus.com`
 - **Main site:** `fundmycampus.com` (separate Vercel project); existing course pages `/loan-for-mbbs`, `/loan-for-bds`
 - **GitHub:** `https://github.com/Amitsourav/FMC_LANDING_PAGE.git`
