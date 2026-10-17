@@ -51,7 +51,7 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 
 ## Pending Work
 - [ ] Decide final URL; ask main-site dev to add the `/medical-education-loan` rewrite (and decide what happens to `/education-loan-for-MBA`)
-- [ ] Confirm the leads API accepts the new payload (optional email, `assessment`, `attribution`, `Idempotency-Key` header)
+- [ ] Backend (`fundmycampus-workers`, `src/routes/landing-leads.ts`) only stores name, email, phone, loan_status, consent, source — extend it to keep course, assessment, attribution, enquiry_ref
 - [ ] Real author/reviewer name for the sources panel (spec §19)
 - [ ] Add redirect from `landing.fundmycampus.com` to the canonical path. **Do NOT remove `landing.fundmycampus.com` from Vercel** — the rewrite depends on it.
 - [ ] Not built (spec phases 2–5): per-college SSR pages, sitemap, CRM worker, admin panel

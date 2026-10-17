@@ -805,7 +805,8 @@ var Lead = (function () {
   function post(body) {
     return fetch(API_URL + '/api/landing-leads', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': body.idempotency_key },
+      // Only Content-Type: the API's CORS allow-list doesn't include custom headers
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -817,7 +818,8 @@ var Lead = (function () {
   function validateContact(name, phone, email, consent) {
     if (name.length < 2) return 'Please enter your full name.';
     if (!/^[6-9]\d{9}$/.test(phone)) return 'Please enter a valid 10-digit Indian mobile number.';
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please check your email address, or leave it blank.';
+    // The leads API requires a valid email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address.';
     if (!consent) return 'Please agree to be contacted so a counsellor can call you.';
     return '';
   }
