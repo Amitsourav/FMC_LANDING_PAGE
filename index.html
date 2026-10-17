@@ -93,33 +93,87 @@
           <p>Check which loan routes may suit your college, admission route, funding need and co-applicants — in India or abroad. Free, indicative, and no credit enquiry is made.</p>
           <ul class="hero-assure">
             <li>No CIBIL pull</li>
-            <li>Result before contact details</li>
             <li>Free counsellor review</li>
+            <li>India &amp; abroad</li>
           </ul>
-        </div>
-
-        <aside class="hero-panel" aria-label="What the checker covers">
-          <div class="hero-panel-title">Checked against</div>
-          <div class="trust-badges">
-            <div class="badge">
-              <strong>906</strong>
-              <span>NMC medical institution records</span>
-            </div>
-            <div class="badge">
-              <strong>330</strong>
-              <span>Dental (BDS) college records</span>
-            </div>
-            <div class="badge">
-              <strong>1,441</strong>
-              <span>Scheme-listed (QHEI) institutions</span>
-            </div>
+          <div class="trust-badges hero-stats">
+            <div class="badge"><strong>906</strong><span>NMC medical institution records</span></div>
+            <div class="badge"><strong>330</strong><span>Dental (BDS) college records</span></div>
+            <div class="badge"><strong>1,441</strong><span>Scheme-listed (QHEI) institutions</span></div>
           </div>
-          <div class="hero-panel-routes">
-            <span>4 loan routes screened</span>
+          <div class="hero-routes">
+            <span>4 loan routes screened:</span>
             <div class="route-chips"><b>Scheme</b><b>Simple interest</b><b>PG flexible</b><b>Direct EMI</b></div>
           </div>
-          <p class="hero-panel-foot">Data as of Oct 2026 · Sources listed below</p>
-        </aside>
+          <ol class="hero-steps">
+            <li><b>1</b><span>Share your details or check your routes below</span></li>
+            <li><b>2</b><span>A counsellor reviews your college &amp; profile</span></li>
+            <li><b>3</b><span>Apply on the route that fits you best</span></li>
+          </ol>
+        </div>
+
+        <div class="form-card hero-form-card" id="callback">
+          <div class="form-header">
+            <h2>Get a free medical loan consultation</h2>
+            <p>Share your details and a FundMyCampus counsellor will call you about your options.</p>
+          </div>
+          <form id="hero-lead-form" novalidate>
+            <div class="field">
+              <label for="hl-name">Full name</label>
+              <input type="text" id="hl-name" autocomplete="name" maxlength="100" placeholder="Rahul Sharma" required>
+            </div>
+            <div class="field">
+              <label for="hl-phone">Mobile number</label>
+              <div class="phone-row">
+                <span class="phone-cc">+91</span>
+                <input type="tel" id="hl-phone" autocomplete="tel-national" inputmode="numeric" maxlength="10" placeholder="98765 43210" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="hl-email">Email <span class="optional">(optional)</span></label>
+              <input type="email" id="hl-email" autocomplete="email" maxlength="150" placeholder="rahul@example.com">
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="hl-course">Course</label>
+                <select id="hl-course" required>
+                  <option value="">Select</option>
+                  <option>MBBS</option><option>BDS</option><option>MD / MS</option><option>MDS</option><option>DNB</option><option>MBBS Abroad</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="hl-status">Admission status</label>
+                <select id="hl-status" required>
+                  <option value="">Select</option>
+                  <option value="need_loan">Admission confirmed — need a loan</option>
+                  <option value="awaiting_calls">Awaiting NEET counselling / allotment</option>
+                  <option value="already_taken">Have a loan offer — want better terms</option>
+                  <option value="self_funding">Just exploring options</option>
+                </select>
+              </div>
+            </div>
+            <div class="consent-box">
+              <label class="consent-label">
+                <input type="checkbox" id="hl-consent" required>
+                <span>I agree that FundMyCampus may contact me about this education-loan enquiry by phone or WhatsApp. I have read the <a href="https://www.fundmycampus.com/privacy" target="_blank" rel="noopener">Privacy Notice</a>.</span>
+              </label>
+            </div>
+            <p class="form-error" id="hl-error" role="alert" hidden></p>
+            <button type="submit" class="btn-submit" id="hl-submit">Get Free Consultation</button>
+            <p class="disclaimer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              No credit enquiry &middot; No spam &middot; Free counselling
+            </p>
+          </form>
+          <div id="hl-success" class="success-message" hidden>
+            <div class="success-icon">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <h3>Thank you!</h3>
+            <p>Reference <strong id="hl-ref"></strong>. A counsellor will contact you on the number you shared.</p>
+            <a href="#checker" class="btn-apply hl-next">Check your loan routes now &darr;</a>
+          </div>
+        </div>
       </div>
 
       <noscript>
@@ -132,7 +186,7 @@
         <div class="form-card checker-card">
           <div class="form-header">
             <h2>Check your medical loan routes</h2>
-            <p>See an indicative result first. Contact details are only asked if you want a counsellor to review it.</p>
+            <p>Prefer to see your options yourself? Get an indicative result here — no contact details needed.</p>
           </div>
 
           <form id="checker-form" novalidate>

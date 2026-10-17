@@ -3153,3 +3153,148 @@ input:focus-visible {
     margin-bottom: -6px;
   }
 }
+
+/* Hero lead form */
+.hero-top {
+  align-items: start;
+}
+
+.hero-form-card {
+  padding: 22px 22px 18px;
+}
+
+.hero-form-card .field {
+  margin-bottom: 10px;
+}
+
+.hero-form-card .field input,
+.hero-form-card .field select {
+  font-size: 1rem;
+  min-height: 44px;
+}
+
+.hero-form-card .field input {
+  background-image: none;
+  cursor: text;
+}
+
+.hero-form-card .field-row {
+  grid-template-columns: 0.8fr 1.2fr;
+}
+
+.hero-form-card .consent-label {
+  font-size: 0.78rem;
+}
+
+.hero-form-card .hl-next {
+  margin-top: 16px;
+}
+
+.hero-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.hero-stats .badge {
+  padding: 14px;
+  background: linear-gradient(160deg, #F0FDFA 0%, #FFFFFF 80%);
+  border: 1px solid #CCFBF1;
+  border-radius: 12px;
+}
+
+.hero-stats .badge strong {
+  font-size: 1.5rem;
+  color: #0D9488;
+}
+
+.hero-stats .badge span {
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: #4B5563;
+}
+
+.hero-routes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4B5563;
+}
+
+.hero-routes .route-chips {
+  margin-top: 0;
+}
+
+@media (max-width: 1024px) {
+  .hero-form-card {
+    max-width: 560px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-stats {
+    gap: 8px;
+  }
+
+  .hero-stats .badge {
+    padding: 10px 8px;
+  }
+
+  .hero-stats .badge strong {
+    font-size: 1.15rem;
+  }
+
+  .hero-stats .badge span {
+    font-size: 0.68rem;
+  }
+
+  .hero-routes {
+    display: none;
+  }
+
+  .hero-form-card .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hero-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+  list-style: none;
+  counter-reset: none;
+}
+
+.hero-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #374151;
+}
+
+.hero-steps b {
+  flex: 0 0 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #000000;
+  color: #FFFFFF;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 600px) {
+  .hero-steps {
+    display: none;
+  }
+}

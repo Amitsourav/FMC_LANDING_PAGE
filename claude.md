@@ -46,7 +46,7 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 - Navbar logo is **static/non-clickable** (intentional)
 - Footer logo size: **200px** height
 - Lead form: success is shown **only after the API returns 2xx** (spec §11); on failure the user sees retry + WhatsApp fallback and keeps their data
-- Indicative result is shown before any contact details are asked
+- Hero has a quick callback form (`#hero-lead-form`, source `medical_landing_hero`, `loan_status` keeps the old MBA enum values). The checker below never requires contact details; its own review form uses source `medical_loan_checker`. Both go through `Lead.post()` in `script.js`.
 - Map pins are spread randomly inside the state shape — not geocoded
 
 ## Pending Work

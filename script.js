@@ -793,6 +793,35 @@ var Lead = (function () {
   if (!store('session', 'fmc_landing_url')) store('session', 'fmc_landing_url', window.location.href);
   if (!store('session', 'fmc_referrer')) store('session', 'fmc_referrer', document.referrer || '');
 
+  function attribution() {
+    var params = new URLSearchParams(window.location.search);
+    return {
+      landing_url: store('session', 'fmc_landing_url'), page_url: window.location.href, referrer: store('session', 'fmc_referrer'),
+      utm_source: params.get('utm_source'), utm_medium: params.get('utm_medium'), utm_campaign: params.get('utm_campaign'),
+      utm_term: params.get('utm_term'), utm_content: params.get('utm_content')
+    };
+  }
+
+  function post(body) {
+    return fetch(API_URL + '/api/landing-leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': body.idempotency_key },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res;
+    });
+  }
+
+  // Shared contact validation; returns an error message or ''
+  function validateContact(name, phone, email, consent) {
+    if (name.length < 2) return 'Please enter your full name.';
+    if (!/^[6-9]\d{9}$/.test(phone)) return 'Please enter a valid 10-digit Indian mobile number.';
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please check your email address, or leave it blank.';
+    if (!consent) return 'Please agree to be contacted so a counsellor can call you.';
+    return '';
+  }
+
   if (!form) return { reset: function () {} };
 
   $('open-lead').addEventListener('click', function () {
@@ -840,13 +869,10 @@ var Lead = (function () {
     var name = $('lead-name').value.trim();
     var phone = $('lead-phone').value.replace(/\D/g, '');
     var email = $('lead-email').value.trim();
-    if (name.length < 2) { showError('Please enter your full name.'); $('lead-name').focus(); return; }
-    if (!/^[6-9]\d{9}$/.test(phone)) { showError('Please enter a valid 10-digit Indian mobile number.'); $('lead-phone').focus(); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Please check your email address, or leave it blank.'); $('lead-email').focus(); return; }
-    if (!$('lead-consent').checked) { showError('Please agree to be contacted so a counsellor can review your enquiry.'); $('lead-consent').focus(); return; }
+    var problem = validateContact(name, phone, email, $('lead-consent').checked);
+    if (problem) { showError(problem); return; }
 
     ref = ref || newRef();
-    var params = new URLSearchParams(window.location.search);
     var body = {
       name: name, email: email, phone: '+91' + phone,
       loan_status: 'need_loan',
@@ -855,22 +881,13 @@ var Lead = (function () {
       source: 'medical_loan_checker',
       enquiry_ref: ref, idempotency_key: ref,
       assessment: assessmentPayload(),
-      attribution: {
-        landing_url: store('session', 'fmc_landing_url'), page_url: window.location.href, referrer: store('session', 'fmc_referrer'),
-        utm_source: params.get('utm_source'), utm_medium: params.get('utm_medium'), utm_campaign: params.get('utm_campaign'),
-        utm_term: params.get('utm_term'), utm_content: params.get('utm_content')
-      }
+      attribution: attribution()
     };
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
-    fetch(API_URL + '/api/landing-leads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': ref },
-      body: JSON.stringify(body)
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+    post(body)
+      .then(function () {
         form.hidden = true;
         panel.querySelector('h3').hidden = true;
         panel.querySelector('.lead-sub').hidden = true;
@@ -890,6 +907,11 @@ var Lead = (function () {
   $('lead-wa').addEventListener('click', function () { track('whatsapp_clicked', { origin: 'lead_success' }); });
 
   return {
+    newRef: newRef,
+    post: post,
+    attribution: attribution,
+    validateContact: validateContact,
+    assessment: assessmentPayload,
     reset: function () {
       form.reset();
       form.hidden = false;
@@ -903,6 +925,65 @@ var Lead = (function () {
       ref = null;
     }
   };
+})();
+
+// ═══════════════════════════════════════
+// 2b. HERO CALLBACK FORM — quick lead, no checker needed
+// ═══════════════════════════════════════
+(function () {
+  var form = $('hero-lead-form');
+  if (!form || !Lead.post) return;
+  var errEl = $('hl-error');
+  var btn = $('hl-submit');
+  var ref = null;
+  var startedForm = false;
+
+  form.addEventListener('input', function () {
+    if (!startedForm) { startedForm = true; track('lead_form_started', { page_type: 'medical_hub_hero' }); }
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errEl.hidden = true;
+    var name = $('hl-name').value.trim();
+    var phone = $('hl-phone').value.replace(/\D/g, '');
+    var email = $('hl-email').value.trim();
+    var course = $('hl-course').value;
+    var status = $('hl-status').value;
+    var problem = Lead.validateContact(name, phone, email, $('hl-consent').checked);
+    if (!problem && !course) problem = 'Please select your course.';
+    if (!problem && !status) problem = 'Please select your admission status.';
+    if (problem) { errEl.innerHTML = problem; errEl.hidden = false; return; }
+
+    ref = ref || Lead.newRef();
+    var body = {
+      name: name, email: email, phone: '+91' + phone,
+      loan_status: status, course: course,
+      consent: true, consent_text_version: CONSENT_VERSION, consent_at: new Date().toISOString(),
+      marketing_consent: false,
+      source: 'medical_landing_hero',
+      enquiry_ref: ref, idempotency_key: ref,
+      assessment: Lead.assessment(),   // included only if the checker was completed first
+      attribution: Lead.attribution()
+    };
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    Lead.post(body)
+      .then(function () {
+        form.hidden = true;
+        form.parentNode.querySelector('.form-header').hidden = true;
+        $('hl-ref').textContent = ref;
+        $('hl-success').hidden = false;
+        track('lead_submitted', { form_version: CONSENT_VERSION, origin: 'hero' });
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = 'Try again';
+        errEl.innerHTML = 'We couldn\'t confirm your request was received. Please try again, or <a href="https://wa.me/' + WA_NUMBER + '" target="_blank" rel="noopener noreferrer">message us on WhatsApp</a>.';
+        errEl.hidden = false;
+      });
+  });
 })();
 
 // ═══════════════════════════════════════
