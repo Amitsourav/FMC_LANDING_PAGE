@@ -13,15 +13,6 @@
 (function (global) {
   'use strict';
 
-  // ── States with college data (interactive) ───────────────────────────────
-  var ACTIVE_STATES = new Set([
-    'Andhra Pradesh', 'Bihar', 'Chandigarh', 'Chhattisgarh', 'Delhi',
-    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir',
-    'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra',
-    'Meghalaya', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu',
-    'Telangana', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
-  ]);
-
   // ── Inject CSS once ───────────────────────────────────────────────────────
   function injectStyles() {
     if (document.getElementById('india-map-styles')) return;
@@ -54,16 +45,17 @@
       /* Interactive states */
       '#india-map-svg path.state-active {',
       '  cursor: pointer;',
+      '  fill: var(--density, #E6FFFA);',
       '}',
       '#india-map-svg path.state-active:hover {',
-      '  fill: #CCFBF1;',
+      '  fill: #FDE68A;',
       '  filter: drop-shadow(0 1px 3px rgba(13,148,136,.25));',
       '}',
 
       /* Selected state */
       '#india-map-svg path.state-selected {',
-      '  fill: #0D9488 !important;',
-      '  stroke: #0F766E;',
+      '  fill: #0F766E !important;',
+      '  stroke: #134E4A;',
       '  stroke-width: 0.8;',
       '  filter: drop-shadow(0 2px 4px rgba(13,148,136,.4));',
       '}',
@@ -101,6 +93,13 @@
     return tip;
   }
 
+  // ── Density scale (colleges per state) — shared with the legend in index.html ──
+  var DENSITY = [[60, '#14B8A6'], [30, '#5EEAD4'], [10, '#99F6E4'], [1, '#CCFBF1']];
+  function densityColor(count) {
+    for (var i = 0; i < DENSITY.length; i++) if (count >= DENSITY[i][0]) return DENSITY[i][1];
+    return '#E6FFFA';
+  }
+
   // ── Main render function ──────────────────────────────────────────────────
   /**
    * @param {string}   containerId    - ID of the DOM element to inject the map into
@@ -123,7 +122,7 @@
     var stateCollegeMap = {};
     if (Array.isArray(colleges)) {
       colleges.forEach(function (c) {
-        var s = c.state;
+        var s = c.state || c.s;
         if (!s || s === 'Multiple') return;
         if (!stateCollegeMap[s]) stateCollegeMap[s] = [];
         stateCollegeMap[s].push(c);
@@ -169,7 +168,8 @@
           // Set data-state attribute for consistent API
           path.setAttribute('data-state', stateName);
 
-          var isInteractive = ACTIVE_STATES.has(stateName);
+          // A state is interactive when the supplied dataset has colleges in it
+          var isInteractive = !!stateCollegeMap[stateName];
           path.classList.add(isInteractive ? 'state-active' : 'state-inactive');
 
           // Remove any existing inline fill/stroke from the SVG file
@@ -179,14 +179,13 @@
           path.style.stroke = '';
 
           var count = stateCollegeMap[stateName] ? stateCollegeMap[stateName].length : 0;
+          if (isInteractive) path.style.setProperty('--density', densityColor(count));
 
           // Tooltip on hover for all states
           path.addEventListener('mouseenter', function (e) {
             var label = stateName;
             if (isInteractive) {
-              label += count > 0
-                ? ' \u2014 ' + count + (count === 1 ? ' college' : ' colleges')
-                : ' \u2014 No data yet';
+              label += ' \u2014 ' + count + (count === 1 ? ' college' : ' colleges');
             }
             tooltip.textContent = label;
             tooltip.classList.add('visible');
