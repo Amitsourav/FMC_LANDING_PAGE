@@ -36,7 +36,7 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 | `logo.png` | FMC logo |
 
 ## Hard rules from the spec
-- **Never reveal lender names** in public files, payloads, WhatsApp text or metadata (products use neutral labels). The old bank-logo carousel was removed for this reason.
+- **Lender names:** the partner logo strip under the hero is back (owner decision, 19 Oct 2026). Product routes still use neutral labels, and no copy, payload or WhatsApp text may map a route to a specific lender.
 - Don't edit `engine.js` thresholds by hand — policy changes should be versioned (credit rule `FMC-CREDIT-2026-10-14-v1`, products `2026-10-14-v2`).
 - No invented claims (disbursal totals, approval rates, "48-hour approval", reviewer names).
 - QHEI status is exact-record only; never inherit from an affiliated university.
