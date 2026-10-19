@@ -3932,8 +3932,34 @@ input:focus-visible {
 }
 
 .lt-best {
-  border-color: #0D9488;
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.12);
+  background: linear-gradient(160deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 2px solid #F59E0B;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.28);
+}
+
+.lt-best .lt-flag {
+  color: #0A2334;
+  background: #FBBF24;
+}
+
+.lt-perk {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 10px 0 0;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #0F766E;
+  background: #F0FDFA;
+  border: 1px solid #99F6E4;
+  border-radius: 8px;
+}
+
+.lt-perk::before {
+  content: '✓';
+  font-weight: 800;
 }
 
 .lt-flag {

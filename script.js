@@ -666,14 +666,16 @@ var Checker = (function () {
   var TYPE_META = {
     psu: { name: 'Government banks', partners: 'e.g. PNB, Union Bank',
       icon: '<path d="M4 10L16 4l12 6z" fill="#99F6E4" stroke="#0A2334" stroke-width="1.6" stroke-linejoin="round"/><g fill="#fff" stroke="#0A2334" stroke-width="1.6"><rect x="7" y="11" width="3" height="10"/><rect x="14.5" y="11" width="3" height="10"/><rect x="22" y="11" width="3" height="10"/></g><rect x="4" y="21" width="24" height="4" rx="1" fill="#0D9488" stroke="#0A2334" stroke-width="1.6"/>',
-      facts: { 'Interest': 'About 7.15%–10.15%', 'Property': 'Not needed up to ₹7.5 lakh; full cover above', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Slower, branch-based' },
-      pmvFacts: { 'Interest': 'About 7.15%–8.65% (PM-Vidyalaxmi)', 'Property': 'Not needed', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Slower, branch-based' } },
+      facts: { 'Interest': 'About 7.15%–10.15%', 'Property': 'Not needed up to ₹7.5 lakh', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Light-speed sanction within 24 hrs' },
+      pmvFacts: { 'Interest': 'About 7.15%–8.65% (PM-Vidyalaxmi)', 'Property': 'Not needed', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Light-speed sanction within 24 hrs' } },
     pvt: { name: 'Private banks', partners: 'e.g. ICICI Bank, Axis Bank, IDFC First, Yes Bank',
       icon: '<rect x="4" y="8" width="24" height="17" rx="3" fill="#CCFBF1" stroke="#0A2334" stroke-width="1.6"/><rect x="4" y="12" width="24" height="3" fill="#0D9488"/><rect x="8" y="19" width="8" height="2.5" rx="1" fill="#0A2334"/>',
-      facts: { 'Interest': 'About 8.75%–14%', 'Property': 'Not needed at their select colleges; otherwise yes', 'While studying': 'Often interest or part-interest', 'Decision time': 'About 1–2 weeks' } },
+      perk: 'Pre-approved sanction letter, irrespective of college',
+      facts: { 'Interest': 'About 9%–12%', 'Property': 'Often not needed', 'While studying': 'Often interest or part-interest', 'Decision time': 'Light-speed sanction within 24 hrs' } },
     nbfc: { name: 'NBFCs', partners: 'e.g. Credila, Avanse, Tata Capital, Auxilo, Poonawalla',
       icon: '<circle cx="16" cy="16" r="11" fill="#FBBF24" stroke="#0A2334" stroke-width="1.6"/><path d="M17.5 8l-6 9h5l-2 7 6-9h-5z" fill="#0A2334"/>',
-      facts: { 'Interest': 'About 9.5%–14%', 'Property': 'Often not needed (₹50 lakh+ unsecured advertised)', 'While studying': 'Usually interest or part-payment', 'Decision time': 'Fastest — a few days' } }
+      perk: 'Pre-approved sanction letter, irrespective of college',
+      facts: { 'Interest': 'About 11%–13%', 'Property': 'Often not needed (₹50 lakh+ without property)', 'While studying': 'Usually interest or part-payment', 'Decision time': 'Light-speed sanction within 24 hrs' } }
   };
   var leadInterest = null;
 
@@ -689,6 +691,7 @@ var Checker = (function () {
     if (d.partial) html += '<p class="dz-partial">Estimate so far — add CIBIL scores and income in step 3 for a sharper rating.</p>';
     html += '<div class="lt-list">' + types.map(function (t) {
       var r = d[t], m = TYPE_META[t], facts = r.pmv && m.pmvFacts ? m.pmvFacts : m.facts;
+      var pos = r.reasons.filter(function (x) { return x.tone !== 'bad'; });
       var meter = '';
       for (var i = 1; i <= 4; i++) meter += '<span' + (i <= r.level ? ' class="on"' : '') + '></span>';
       return '<article class="lt-card lt-' + r.band + (d.best === t ? ' lt-best' : '') + '">' +
@@ -696,7 +699,8 @@ var Checker = (function () {
         '<div class="lt-top"><svg class="lt-icon" viewBox="0 0 32 32" aria-hidden="true">' + m.icon + '</svg><div><h4>' + m.name + '</h4><small>' + m.partners + '</small></div></div>' +
         '<div class="lt-rating"><span class="lt-label">Loan doability</span><strong class="lt-band">' + r.label + '</strong></div>' +
         '<div class="lt-meter" role="img" aria-label="Loan doability ' + r.label + '">' + meter + '</div>' +
-        '<ul class="lt-reasons">' + r.reasons.map(function (x) { return '<li class="lr-' + x.tone + '">' + escHtml(x.text) + '</li>'; }).join('') + '</ul>' +
+        (m.perk ? '<p class="lt-perk">' + m.perk + '</p>' : '') +
+        (pos.length ? '<ul class="lt-reasons">' + pos.map(function (x) { return '<li class="lr-' + x.tone + '">' + escHtml(x.text) + '</li>'; }).join('') + '</ul>' : '') +
         '<dl class="lt-facts">' + Object.keys(facts).map(function (k) { return '<div><dt>' + k + '</dt><dd>' + escHtml(facts[k]) + '</dd></div>'; }).join('') + '</dl>' +
         '<button type="button" class="lt-connect" data-type="' + t + '">Connect with a counsellor &rarr;</button>' +
         '</article>';

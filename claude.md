@@ -41,6 +41,7 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 - **Lender names:** the partner logo strip under the hero is back (owner decision, 19 Oct 2026). Product routes still use neutral labels, and no copy, payload or WhatsApp text may map a route to a specific lender.
 - Don't edit `engine.js` thresholds by hand — policy changes should be versioned (credit rule `FMC-CREDIT-2026-10-14-v1`, products `2026-10-14-v2`).
 - No invented claims (disbursal totals, approval rates, "48-hour approval", reviewer names).
+- Lender-type cards (owner decision, 19 Oct 2026): show only positive/neutral reasons (negative lines hidden), "Light-speed sanction within 24 hrs" for all three types, private banks 9%–12% with no PM-Vidyalaxmi, NBFCs 11%–13%, and "Pre-approved sanction letter, irrespective of college" on private banks and NBFCs. These are owner-supplied — don't revert to the research figures without asking.
 - QHEI status is exact-record only; never inherit from an affiliated university.
 - Simple-interest campaign rates auto-expire for new applications after 15 Nov 2026 (engine uses Asia/Kolkata date).
 

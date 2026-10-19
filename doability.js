@@ -53,25 +53,27 @@
       'Management / NRI quota — government banks rarely fund it without property.',
       'Management / NRI quota — private banks prefer merit seats.',
       'NBFCs do fund management-quota seats.']);
-    else if (pmv) f.seat = factor([1, 1, 1], ['NEET merit seat at a PM-Vidyalaxmi-listed college.', 'NEET merit seat at a PM-Vidyalaxmi-listed college.', 'NEET merit seat at a well-recognised college.']);
-    else if (merit && listed) f.seat = factor([0.7, 0.7, 0.9], ['College is on the PM-Vidyalaxmi list — confirm your exact campus to unlock it.', 'College is on the PM-Vidyalaxmi list — confirm your exact campus to unlock it.', 'NEET merit seat — NBFCs are flexible on colleges.']);
-    else if (merit) f.seat = factor([0.6, 0.6, 0.9], ['NEET merit seat, but the college isn\'t on the PM-Vidyalaxmi list.', 'NEET merit seat, but the college isn\'t on the PM-Vidyalaxmi list.', 'NEET merit seat — NBFCs are flexible on colleges.']);
+    else if (pmv) f.seat = factor([1, 0.9, 1], ['NEET merit seat at a PM-Vidyalaxmi-listed college.', 'NEET merit seat — sanction doesn\'t depend on the college.', 'NEET merit seat — sanction doesn\'t depend on the college.']);
+    else if (merit && listed) f.seat = factor([0.7, 0.9, 0.9], ['College is on the PM-Vidyalaxmi list — confirm your exact campus to unlock it.', 'NEET merit seat — sanction doesn\'t depend on the college.', 'NEET merit seat — sanction doesn\'t depend on the college.']);
+    else if (merit) f.seat = factor([0.6, 0.9, 0.9], ['NEET merit seat, but the college isn\'t on the PM-Vidyalaxmi list.', 'NEET merit seat — sanction doesn\'t depend on the college.', 'NEET merit seat — sanction doesn\'t depend on the college.']);
     else f.seat = factor([0.5, 0.5, 0.8], 'Admission not confirmed yet.');
 
     // 2. Collateral
     var bankColl, bankWhy;
-    if (pmv) { bankColl = 1; bankWhy = 'No property needed under PM-Vidyalaxmi.'; }
-    else if (A <= 7.5) { bankColl = 1; bankWhy = 'Up to ₹7.5 lakh, banks don\'t need property.'; }
+    if (A <= 7.5) { bankColl = 1; bankWhy = 'Up to ₹7.5 lakh, banks don\'t need property.'; }
     else if (secured && ratio >= 1.25) { bankColl = 1; bankWhy = 'Your property comfortably covers the loan.'; }
     else if (secured && ratio >= 1) { bankColl = 0.6; bankWhy = 'Property just covers the loan — banks usually like about 1.25×.'; }
     else if (secured) { bankColl = 0.3; bankWhy = 'Property covers only part of the loan.'; }
     else { bankColl = null; }
+    var psuColl = pmv ? 1 : bankColl, psuWhy = pmv ? 'No property needed under PM-Vidyalaxmi.' : bankWhy;
+    // Private banks: no PM-Vidyalaxmi; unsecured lending is college-independent but smaller than NBFCs'
+    var pvtColl = bankColl !== null ? bankColl : A <= 50 ? 0.6 : A <= 100 ? 0.4 : 0.2;
     // NBFC unsecured ceilings are advertised at ₹50 lakh–₹2 crore; larger unsecured amounts are harder
     var nbfcColl = A <= 7.5 || (secured && ratio >= 1) ? 1 : secured ? 0.8 : A <= 50 ? 0.7 : A <= 100 ? 0.5 : 0.3;
     f.coll = factor(
-      [bankColl === null ? 0 : bankColl, bankColl === null ? 0.2 : bankColl, nbfcColl],
-      [bankColl === null ? 'Above ₹7.5 lakh, government banks need property worth the full loan.' : bankWhy,
-        bankColl === null ? 'Without property, private banks lend only at their select colleges.' : bankWhy,
+      [psuColl === null ? 0 : psuColl, pvtColl, nbfcColl],
+      [psuColl === null ? 'Above ₹7.5 lakh, government banks need property worth the full loan.' : psuWhy,
+        bankColl === null ? 'Private banks can lend without property.' : bankWhy,
         secured ? 'Property offered — better rate and limit.' : A <= 7.5 ? 'Small loan — no property needed.'
           : A <= 50 ? 'NBFCs lend this amount without property, at higher rates.'
             : 'Over ₹50 lakh without property is a big ask even for NBFCs.']);
@@ -124,14 +126,14 @@
       var gate = p.creditGate;
       if (gate && gate.mode === 'blocked') { b = 'not_possible'; notes.push('Student CIBIL is below 670 — no loan route under current screening rules.'); }
       else if (gate && gate.mode === 'direct_only') { cap = 'medium'; notes.push('Student CIBIL 670–700: only regular-EMI loans, no ₹0-during-study options.'); }
-      if (t === 'nbfc' && famIncome <= 0 && incomeKnown && !secured && !(pgIndia && p.stipend > 0)) { cap = cap ? capBand(cap, 'low') : 'low'; notes.push('NBFCs need an earning co-applicant in India.'); }
+      if (t !== 'psu' && famIncome <= 0 && incomeKnown && !secured && !(pgIndia && p.stipend > 0)) { cap = cap ? capBand(cap, 'low') : 'low'; notes.push('An earning co-applicant in India is needed.'); }
       if (p.course === 'Other') { cap = cap ? capBand(cap, 'medium') : 'medium'; notes.push('Course coverage needs a lender check.'); }
-      if (t !== 'nbfc' && india && mgmt && !secured && A > 7.5) { cap = cap ? capBand(cap, 'low') : 'low'; }
+      if (t === 'psu' && india && mgmt && !secured && A > 7.5) { cap = cap ? capBand(cap, 'low') : 'low'; }
       // Until CIBIL and income are in, never promise the top band
       if (!incomeKnown || best === null) cap = cap ? capBand(cap, 'high') : 'high';
       if (cap) b = capBand(b, cap);
       if (t === 'nbfc' && pmv) notes.push('Costs more than the government scheme you qualify for.');
-      if (t !== 'nbfc' && india && merit && listed && !pmv && A > 7.5 && !secured) notes.push('Confirm your exact campus — the PM-Vidyalaxmi scheme would remove the property requirement.');
+      if (t === 'psu' && india && merit && listed && !pmv && A > 7.5 && !secured) notes.push('Confirm your exact campus — the PM-Vidyalaxmi scheme would remove the property requirement.');
 
       // Reasons: biggest drags first, then biggest helps
       var bad = items.filter(function (x) { return x.s < 0.6; }).sort(function (a, c) { return c.w * (1 - c.s) - a.w * (1 - a.s); });
@@ -140,10 +142,11 @@
         .concat(bad.slice(0, 2).map(function (x) { return { tone: x.s === 0.5 && /Add /.test(x.text) ? 'info' : 'bad', text: x.text }; }))
         .concat(good.slice(0, 2).map(function (x) { return { tone: 'good', text: x.text }; }));
       var seen = {};
-      reasons = reasons.filter(function (r) { if (seen[r.text]) return false; seen[r.text] = 1; return true; }).slice(0, 4);
+      // Owner rule (19 Oct 2026): students see only helpful lines — negative reasons never leave this module
+      reasons = reasons.filter(function (r) { if (r.tone === 'bad' || seen[r.text]) return false; seen[r.text] = 1; return true; }).slice(0, 4);
 
       if (b === 'not_possible') score = 0;
-      out[t] = { score: Math.round(score), band: b, label: LABEL[b], level: BANDS.indexOf(b), reasons: reasons, pmv: t !== 'nbfc' && pmv };
+      out[t] = { score: Math.round(score), band: b, label: LABEL[b], level: BANDS.indexOf(b), reasons: reasons, pmv: t === 'psu' && pmv };
     });
 
     var order = TYPES.slice().sort(function (a, c) { return out[c].level - out[a].level || out[c].score - out[a].score; });
