@@ -30,6 +30,9 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 | `medical-data.js` | GENERATED — 2,664 institutions (906 NMC, 330 DCI, 1,441 QHEI incl. 16 additions) |
 | `script.js` | Checker UI, institution combobox, results, lead capture, map, compare |
 | `doability.js` | Loan doability by lender type (Government banks / Private banks / NBFCs): hard rules + weighted factors. Basis: `reports/Medical loan rules by lender type.md` (research, Oct 2026, not in git) |
+| `repayment.js` | Year-by-year repayment illustration per lender type (rates = middle of each card's range; Govt banks capitalise study interest, Private/NBFC pay simple interest while studying). Result shows it once all details are filled, with editable loan amount, interest rate, moratorium (months) and EMI tenure (edits change the plan + PDF only, not the ratings; they reset when the form's amount/course/destination/tenure change). The loan is stretched past the last fee payout if moratorium + tenure is too short; "Download PDF" builds a branded PDF with jsPDF 2.5.1 + autotable 3.8.2 (cdnjs, loaded on click) and the cropped `logo.png` |
+| PM-Vidyalaxmi rate | Fixed 8.85% for every institution on the 1,441-QHEI list as on 05.10.2026 (owner decision 19 Oct 2026; replaces the RLLR + BSP formulas). `PMV` in `repayment.js`. Government banks only, and only when the scheme applies (India + merit + listed + exact campus confirmed). The 05.10.2026 list has exactly the same 1,441 AISHE codes as `medical-data.js` (the 16 owner additions are now official; none of the 92 removed institutions are in the data) |
+| `tests/repayment.cjs` | Repayment checks — run `node tests/repayment.cjs` |
 | `tests/doability.cjs` | Doability checks — run `node tests/doability.cjs` |
 | `india-map.js` / `india-map.svg` | Interactive map; clickable states derived from the data passed in |
 | `tools/build-data.py` | Regenerates `medical-data.js` from spec Appendices A–D |

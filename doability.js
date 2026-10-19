@@ -11,8 +11,8 @@
   var TYPES = ['psu', 'pvt', 'nbfc'];
   // Weights per factor: [Government banks, Private banks, NBFCs]
   var W = { seat: [30, 25, 15], coll: [30, 25, 15], credit: [20, 20, 20], income: [5, 15, 30], dest: [10, 10, 10], speed: [5, 5, 10] };
-  // Rate used only to estimate a post-study EMI for the income test
-  var EST_RATE = { psu: 9.5, pvt: 11.5, nbfc: 12.5 };
+  // The income test uses the same EMI the repayment plan shows (same rates, tenure and study-period interest)
+  var Repayment = root.Repayment || (typeof require === 'function' ? require('./repayment.js') : null);
   var BANDS = ['not_possible', 'low', 'medium', 'high', 'very_high'];
   var LABEL = { very_high: 'Very high', high: 'High', medium: 'Medium', low: 'Low', not_possible: 'Not possible' };
 
@@ -21,7 +21,6 @@
     Russia: 0.5, Uzbekistan: 0.4, China: 0.4, Egypt: 0.5, UK: 0.6, USA: 0.6, Australia: 0.6, Other: 0.4
   };
 
-  function emi(p, r, y) { var m = r / 1200, n = y * 12; return p * m * Math.pow(1 + m, n) / (Math.pow(1 + m, n) - 1); }
   function inr(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
   function band(score) { return score >= 80 ? 'very_high' : score >= 65 ? 'high' : score >= 45 ? 'medium' : score >= 25 ? 'low' : 'not_possible'; }
   function capBand(b, max) { return BANDS.indexOf(b) > BANDS.indexOf(max) ? max : b; }
@@ -83,8 +82,8 @@
     var best = known.length ? Math.max.apply(null, known) : null;
     if (best === null) f.credit = factor([0.5, 0.5, 0.5], 'Add the co-applicant\'s CIBIL score for a sharper estimate.');
     else if (best >= 750) f.credit = factor([1, 1, 1], 'Co-applicant CIBIL ' + best + ' is strong.');
-    else if (best >= 700) f.credit = factor([0.8, 0.7, 0.85], 'Co-applicant CIBIL ' + best + ' is acceptable.');
-    else if (best >= 650) f.credit = factor([0.35, 0.3, 0.55], 'Co-applicant CIBIL ' + best + ' is below what most banks like (700+).');
+    else if (best > 700) f.credit = factor([0.8, 0.7, 0.85], 'Co-applicant CIBIL ' + best + ' is acceptable.');
+    else if (best >= 650) f.credit = factor([0.35, 0.3, 0.55], 'Co-applicant CIBIL ' + best + ' is below what most banks like (above 700).');
     else f.credit = factor([0, 0, 0.2], 'Co-applicant CIBIL ' + best + ' is low for most lenders.');
 
     // 4. Co-applicant income vs estimated EMI (stipend counts only for NBFC PG loans in India)
@@ -92,7 +91,8 @@
     TYPES.forEach(function (t, i) {
       var inc = famIncome + (t === 'nbfc' && pgIndia ? (p.stipend || 0) : 0);
       if (!incomeKnown) { f.income.s[i] = 0.5; f.income.why[i] = 'Add co-applicant income for a sharper estimate.'; return; }
-      var need = emi(A * 100000, EST_RATE[t], 10) + (p.existing || 0);
+      var need = Repayment.schedule({ type: t, amount: A, course: p.course, destination: p.destination, tenure: p.tenure || 10,
+        pmv: t === 'psu' && pmv, directEmi: p.creditGate && p.creditGate.mode === 'direct_only' }).emi + (p.existing || 0);
       var r = inc > 0 ? need / inc : Infinity;
       f.income.s[i] = r <= 0.4 ? 1 : r <= 0.6 ? 0.5 : 0;
       f.income.why[i] = inc <= 0
@@ -110,7 +110,7 @@
           'Study abroad in ' + (p.country || 'your country') + ': lenders check the university case by case.');
 
     // 6. Speed (typical sanction time)
-    f.speed = factor([0.5, 0.8, 1], ['Usually slower, branch-based processing.', 'Usually about 1–2 weeks.', 'Fastest — often a few days.']);
+    f.speed = factor([0.5, 0.8, 1], 'Light-speed sanction within 24 hrs.');
 
     var out = {};
     TYPES.forEach(function (t, i) {

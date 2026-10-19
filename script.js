@@ -86,7 +86,6 @@ var DIR_LABEL = { M: 'Medical (NMC)', D: 'Dental (DCI)', Q: 'QHEI list' };
 function qheiStatus(r) { return r.a ? 'listed' : 'not_verified'; }
 
 function evidenceText(r) {
-  if (r.x) return 'Owner-confirmed QHEI addition (AISHE ' + r.a + ') — exact campus and course must be checked';
   if (r.a) return 'Found in QHEI snapshot (AISHE ' + r.a + ') — current bank confirmation required';
   return 'QHEI coverage not confirmed in our snapshot — this is not a loan rejection';
 }
@@ -533,6 +532,16 @@ var Checker = (function () {
   }
 
   resultBody.addEventListener('click', function (e) {
+    var tab = e.target.closest('.rp-tab');
+    if (tab) {
+      repayType = tab.getAttribute('data-type');
+      delete repayOv.rate;
+      $('repay-block').outerHTML = repaymentHtml(lastDoability, lastProfile);
+      track('repayment_tab', { lender_type: repayType });
+      return;
+    }
+    if (e.target.closest('#rp-reset')) { repayOv = {}; $('repay-block').outerHTML = repaymentHtml(lastDoability, lastProfile); return; }
+    if (e.target.closest('#repay-pdf')) { downloadRepaymentPdf(e.target.closest('#repay-pdf')); return; }
     var connect = e.target.closest('.lt-connect');
     if (connect) {
       leadInterest = connect.getAttribute('data-type');
@@ -628,7 +637,7 @@ var Checker = (function () {
   function shortRate(r) {
     if (!r.rate) return '';
     if (r.id === 'si') return r.rate.replace(' campaign rate, subject to confirmation', '') + ' (offer till 15 Nov 2026)';
-    if (r.id === 'pmv') return 'Linked to the bank\'s rate (' + r.rate + ')';
+    if (r.id === 'pmv') return Repayment.PMV.rate + '% a year, fixed (PM-Vidyalaxmi)';
     return r.rate;
   }
 
@@ -667,7 +676,7 @@ var Checker = (function () {
     psu: { name: 'Government banks', partners: 'e.g. PNB, Union Bank',
       icon: '<path d="M4 10L16 4l12 6z" fill="#99F6E4" stroke="#0A2334" stroke-width="1.6" stroke-linejoin="round"/><g fill="#fff" stroke="#0A2334" stroke-width="1.6"><rect x="7" y="11" width="3" height="10"/><rect x="14.5" y="11" width="3" height="10"/><rect x="22" y="11" width="3" height="10"/></g><rect x="4" y="21" width="24" height="4" rx="1" fill="#0D9488" stroke="#0A2334" stroke-width="1.6"/>',
       facts: { 'Interest': 'About 7.15%–10.15%', 'Property': 'Not needed up to ₹7.5 lakh', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Light-speed sanction within 24 hrs' },
-      pmvFacts: { 'Interest': 'About 7.15%–8.65% (PM-Vidyalaxmi)', 'Property': 'Not needed', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Light-speed sanction within 24 hrs' } },
+      pmvFacts: { 'Interest': '8.85% fixed (PM-Vidyalaxmi)', 'Property': 'Not needed', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Light-speed sanction within 24 hrs' } },
     pvt: { name: 'Private banks', partners: 'e.g. ICICI Bank, Axis Bank, IDFC First, Yes Bank',
       icon: '<rect x="4" y="8" width="24" height="17" rx="3" fill="#CCFBF1" stroke="#0A2334" stroke-width="1.6"/><rect x="4" y="12" width="24" height="3" fill="#0D9488"/><rect x="8" y="19" width="8" height="2.5" rx="1" fill="#0A2334"/>',
       perk: 'Pre-approved sanction letter, irrespective of college',
@@ -679,7 +688,7 @@ var Checker = (function () {
   };
   var leadInterest = null;
 
-  function doabilityHtml(d) {
+  function doabilityHtml(d, p) {
     var types = ['psu', 'pvt', 'nbfc'];
     var html = '';
     if (d.best) {
@@ -707,6 +716,244 @@ var Checker = (function () {
     }).join('') + '</div>';
     html += '<p class="dz-method">Ratings are FundMyCampus estimates from each lender type\'s published rules (Oct 2026) and your answers — not an approval. The lender decides.</p>';
     return html;
+  }
+
+  // ─── Year-by-year repayment plan (repayment.js) + PDF download ───
+  var repayType = null, lastGate = null;
+
+  function repayTypes(d) {
+    return ['psu', 'pvt', 'nbfc'].filter(function (t) { return d[t].band !== 'not_possible'; });
+  }
+
+  // Plan inputs the student can change in the repayment box; empty = use their details / lender default
+  var repayOv = {}, repayBase = '';
+
+  function repaySchedule(d, p, t) {
+    return Repayment.schedule({ type: t, amount: repayOv.amount || p.amount, course: p.course, destination: p.destination,
+      tenure: repayOv.tenure || p.tenure || 10, pmv: d[t].pmv, rate: t === repayType ? repayOv.rate : undefined, moratoriumMonths: repayOv.mor,
+      directEmi: !!(lastGate && lastGate.mode === 'direct_only') });
+  }
+
+  function yearsText(months) {
+    var y = months / 12;
+    return (Math.round(y * 10) / 10) + (y === 1 ? ' year' : ' years');
+  }
+
+  function rateHint(s) {
+    if (s.rate !== s.defaultRate) return 'Your rate';
+    return s.schemeRate ? 'Fixed PM-Vidyalaxmi rate' : 'Typical for ' + TYPE_META[repayType].name;
+  }
+
+  function morHint(s) {
+    return s.moratoriumMonths === s.defaultMoratoriumMonths
+      ? 'Course ' + s.courseYears + ' yrs + 1 yr grace'
+      : '= ' + yearsText(s.moratoriumMonths) + ' · usual ' + s.defaultMoratoriumMonths + ' months';
+  }
+
+  function repayField(id, label, value, attrs, hint) {
+    return '<div class="rp-field"><label for="' + id + '">' + label + '</label><input type="number" id="' + id + '" inputmode="decimal" value="' + value + '" ' + attrs + '>' +
+      '<small id="' + id + '-hint">' + hint + '</small></div>';
+  }
+
+  function repaymentHtml(d, p) {
+    var types = repayTypes(d);
+    if (!types.length || typeof Repayment === 'undefined') return '<div id="repay-block" hidden></div>';
+    if (types.indexOf(repayType) < 0) repayType = d.best && types.indexOf(d.best) >= 0 ? d.best : types[0];
+    var s = repaySchedule(d, p, repayType);
+    return '<section class="repay" id="repay-block" aria-labelledby="repay-title">' +
+      '<div class="rp-head"><h3 id="repay-title">Repayment plan, year by year</h3>' +
+      '<button type="button" class="rp-pdf" id="repay-pdf"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0l-3.5-3.5M10 12l3.5-3.5M4 15h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Download PDF</button></div>' +
+      '<div class="rp-tabs" role="tablist">' + types.map(function (t) {
+        return '<button type="button" role="tab" class="rp-tab' + (t === repayType ? ' on' : '') + '" aria-selected="' + (t === repayType) + '" data-type="' + t + '">' + TYPE_META[t].name + '</button>';
+      }).join('') + '</div>' +
+      '<div class="rp-controls">' +
+        repayField('rp-amount', 'Loan amount (₹ lakh)', s.amount / 100000, 'min="1" max="500" step="0.5"', money(s.amount)) +
+        repayField('rp-rate', 'Interest rate (% a year)', s.rate, 'min="1" max="30" step="0.05"', rateHint(s)) +
+        repayField('rp-mor', 'Moratorium (months)', s.moratoriumMonths, 'min="0" max="120" step="1"' + (s.directEmi ? ' disabled' : ''),
+          s.directEmi ? 'Not allowed — student CIBIL 670–700' : morHint(s)) +
+        repayField('rp-tenure', 'EMI tenure (years)', s.tenure, 'min="1" max="20" step="1"', 'after the moratorium') +
+        '<button type="button" class="rp-reset" id="rp-reset"' + (Object.keys(repayOv).length ? '' : ' hidden') + '>Reset to my details</button>' +
+      '</div>' +
+      '<div id="repay-out">' + repayOutHtml(s) + '</div>' +
+      '</section>';
+  }
+
+  function repayOutHtml(s) {
+    var rows = s.years.map(function (y) {
+      return '<tr class="rp-' + (/EMI/.test(y.stage) ? 'repay' : 'study') + '"><td>' + y.year + '</td><td>' + y.stage +
+        (y.disbursed ? '<small>' + money(y.disbursed) + ' paid out</small>' : '') + '</td><td>' + money(y.paid) + '</td><td>' + money(y.balance) + '</td></tr>';
+    }).join('');
+    var deferred = s.moratoriumMonths > 0 && !s.directEmi;
+    return '<div class="rp-kpis">' +
+        (deferred
+          ? '<div><span>During moratorium</span><strong>' + (s.studyMonthly ? money(s.studyMonthly) + '/mo' : '₹0/mo') + '</strong><small>' + (s.studyMonthly ? 'interest only, at most' : 'interest added to loan') + '</small></div>' +
+            '<div><span>EMI after moratorium</span><strong>' + money(s.emi) + '/mo</strong><small>for ' + s.tenure + ' years</small></div>'
+          : '<div><span>While studying</span><strong>EMI from day one</strong><small>' + (s.directEmi ? 'student CIBIL 670–700' : 'no moratorium') + '</small></div>' +
+            '<div><span>Full EMI</span><strong>' + money(s.emi) + '/mo</strong><small>once all fees are paid out</small></div>') +
+        '<div><span>Total interest</span><strong>' + money(s.totalInterest) + '</strong><small>at ' + s.rate + '% a year</small></div>' +
+        '<div><span>Total you repay</span><strong>' + money(s.totalPaid) + '</strong><small>on ' + money(s.amount) + ' loan</small></div>' +
+      '</div>' +
+      '<div class="rp-table-wrap"><table class="rp-table"><thead><tr><th>Year</th><th>Stage</th><th>You pay</th><th>Loan balance</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="rp-note">Illustration: fees paid out in ' + s.feeYears + ' equal yearly parts; ' +
+        (s.directEmi ? 'regular EMI from the first payout (student CIBIL 670–700)'
+          : deferred ? 'moratorium of ' + s.moratoriumMonths + ' months with ' + (s.studyMonthly ? 'simple interest paid monthly' : 'interest added to the loan') + ', then EMI over ' + s.tenure + ' years'
+            : 'EMI from the first payout, ending ' + s.tenure + ' years later') +
+        (s.extended ? '. The loan is stretched to ' + yearsText(s.endsMonth) + ' so it runs past the last fee payout' : '') +
+        '. Lender ratings above use your details, not these edits. Actual rate and terms are set by the lender.</p>';
+  }
+
+  // Edits in the repayment box: validate, then redraw only the numbers so the cursor stays put
+  var RP_LIMITS = { 'rp-amount': ['amount', 1, 500], 'rp-rate': ['rate', 1, 30], 'rp-mor': ['mor', 0, 120], 'rp-tenure': ['tenure', 1, 20] };
+  resultBody.addEventListener('input', function (e) {
+    var lim = RP_LIMITS[e.target.id];
+    if (!lim || !lastDoability) return;
+    var v = parseFloat(e.target.value), ok = isFinite(v) && v >= lim[1] && v <= lim[2];
+    e.target.classList.toggle('invalid', !ok);
+    if (!ok) return;
+    repayOv[lim[0]] = lim[0] === 'mor' || lim[0] === 'tenure' ? Math.round(v) : v;
+    var s = repaySchedule(lastDoability, lastProfile, repayType);
+    $('repay-out').innerHTML = repayOutHtml(s);
+    $('rp-amount-hint').textContent = money(s.amount);
+    $('rp-rate-hint').textContent = rateHint(s);
+    if (!s.directEmi) $('rp-mor-hint').textContent = morHint(s);
+    $('rp-reset').hidden = false;
+  });
+
+  var pdfLibs = null;
+  function loadScript(src) {
+    return new Promise(function (ok, fail) { var el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = fail; document.head.appendChild(el); });
+  }
+  function loadPdfLibs() {
+    if (!pdfLibs) pdfLibs = loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      .then(function () { return loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'); })
+      .catch(function (e) { pdfLibs = null; throw e; });
+    return pdfLibs;
+  }
+  // Logo PNG cropped to its visible pixels (the file has wide transparent padding)
+  function logoData() {
+    return new Promise(function (ok) {
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'), x = c.getContext('2d');
+          c.width = img.naturalWidth; c.height = img.naturalHeight; x.drawImage(img, 0, 0);
+          var px = x.getImageData(0, 0, c.width, c.height).data, x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+          for (var y = 0; y < c.height; y++) for (var i = 0; i < c.width; i++) if (px[(y * c.width + i) * 4 + 3] > 10) {
+            if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y;
+          }
+          var o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1;
+          o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+          ok({ url: o.toDataURL('image/png'), ratio: o.width / o.height });
+        } catch (e) { ok(null); }
+      };
+      img.onerror = function () { ok(null); };
+      img.src = 'logo.png';
+    });
+  }
+
+  function downloadRepaymentPdf(btn) {
+    var d = lastDoability, p = lastProfile;
+    if (!d || !p) return;
+    var label = btn.innerHTML;
+    btn.disabled = true; btn.textContent = 'Preparing PDF…';
+    Promise.all([loadPdfLibs(), logoData()]).then(function (got) {
+      var logo = got[1], s = repaySchedule(d, p, repayType), doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+      // Standard PDF fonts have no ₹ glyph
+      var rs = function (n) { return 'Rs. ' + money(n).replace('₹', ''); };
+      var W = 210, M = 15, y = 14, teal = [13, 148, 136], ink = [10, 35, 52];
+      if (logo) doc.addImage(logo.url, 'PNG', M, y, 11 * logo.ratio, 11);
+      else { doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor.apply(doc, teal); doc.text('FundMyCampus', M, y + 8); }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(107, 114, 128);
+      doc.text('fundmycampus.com', W - M, y + 4, { align: 'right' });
+      doc.text('WhatsApp +91 78272 25354', W - M, y + 9, { align: 'right' });
+      y += 17;
+      doc.setDrawColor.apply(doc, teal); doc.setLineWidth(0.6); doc.line(M, y, W - M, y);
+      y += 9;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor.apply(doc, ink);
+      doc.text('Medical education loan - repayment plan', M, y);
+      y += 6;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(107, 114, 128);
+      doc.text('Prepared ' + todayText() + ' - illustration only, not a loan offer', M, y);
+      y += 8;
+
+      var place = p.destination === 'India' ? (p.college ? p.college.name : 'India') : (p.foreignCollege ? p.foreignCollege + ', ' : '') + (p.country || 'Abroad');
+      doc.autoTable({
+        startY: y, margin: { left: M, right: M }, theme: 'plain', styles: { fontSize: 9.5, cellPadding: 1.4, textColor: ink },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 42, textColor: [75, 85, 99] } },
+        body: [
+          ['Course', p.course + ' (' + (p.level === 'Masters' ? 'PG' : 'UG') + ')'],
+          ['College / country', place],
+          ['Loan amount', rs(s.amount)],
+          ['Lender type', TYPE_META[repayType].name + ' - loan doability ' + d[repayType].label],
+          ['Interest rate used', s.rate + '% a year' + (s.rate !== s.defaultRate ? ' (your rate)' : s.schemeRate ? ' fixed (PM-Vidyalaxmi)' : ' (typical for this lender type)')],
+          ['Moratorium', s.directEmi ? 'None - EMI from the first payout (student CIBIL 670-700)' : s.moratoriumMonths ? s.moratoriumMonths + ' months (' + yearsText(s.moratoriumMonths) + ')' : 'None - EMI from the first payout'],
+          ['EMI tenure', s.tenure + ' years' + (s.directEmi || !s.moratoriumMonths ? '' : ' after the moratorium')]
+        ]
+      });
+      y = doc.lastAutoTable.finalY + 6;
+
+      // Key numbers
+      var deferred = s.moratoriumMonths > 0 && !s.directEmi;
+      var kp = [deferred ? ['During moratorium', s.studyMonthly ? 'up to ' + rs(s.studyMonthly) + '/mo' : 'Rs. 0/mo'] : ['While studying', 'EMI from day one'], [deferred ? 'EMI after moratorium' : 'Full EMI', rs(s.emi) + '/mo'], ['Total interest', rs(s.totalInterest)], ['Total you repay', rs(s.totalPaid)]];
+      var bw = (W - 2 * M - 9) / 4;
+      kp.forEach(function (k, i) {
+        var bx = M + i * (bw + 3);
+        doc.setFillColor(240, 253, 250); doc.setDrawColor(153, 246, 228); doc.setLineWidth(0.3);
+        doc.roundedRect(bx, y, bw, 16, 2, 2, 'FD');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(75, 85, 99); doc.text(k[0], bx + 3, y + 5.5);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor.apply(doc, ink); doc.text(k[1], bx + 3, y + 12);
+      });
+      y += 22;
+
+      doc.autoTable({
+        startY: y, margin: { left: M, right: M },
+        head: [['Year', 'Stage', 'Loan paid out', 'Interest', 'You pay', 'Balance at year end']],
+        body: s.years.map(function (r) {
+          return ['Year ' + r.year, r.stage.replace('→', '>'), r.disbursed ? rs(r.disbursed) : '-', rs(r.interest), rs(r.paid), rs(r.balance)];
+        }),
+        foot: [['Total', '', rs(s.years.reduce(function (a, r) { return a + r.disbursed; }, 0)), rs(s.years.reduce(function (a, r) { return a + r.interest; }, 0)), rs(s.totalPaid), '']],
+        styles: { fontSize: 8.5, cellPadding: 1.6, textColor: ink },
+        headStyles: { fillColor: teal, textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [240, 253, 250], textColor: ink, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // All lender types side by side
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor.apply(doc, ink);
+      doc.text('Compare lender types', M, y);
+      doc.autoTable({
+        startY: y + 3, margin: { left: M, right: M },
+        head: [['Lender type', 'Loan doability', 'Rate used', 'During moratorium', 'EMI', 'Total you repay']],
+        body: repayTypes(d).map(function (t) {
+          var o = repaySchedule(d, p, t);
+          return [TYPE_META[t].name, d[t].label, o.rate + '%', o.directEmi || !o.moratoriumMonths ? 'EMI from day one' : o.studyMonthly ? 'up to ' + rs(o.studyMonthly) + '/mo' : 'Rs. 0/mo', rs(o.emi) + '/mo', rs(o.totalPaid)];
+        }),
+        styles: { fontSize: 8.5, cellPadding: 2, textColor: ink },
+        headStyles: { fillColor: ink, textColor: 255 }
+      });
+      y = doc.lastAutoTable.finalY + 7;
+
+      var note = 'How this is worked out: fees are paid out in ' + s.feeYears + ' equal yearly parts. Government banks: nothing to pay during the moratorium; simple interest builds up and is added to the loan when EMIs start. Private banks and NBFCs: simple interest is paid every month during the moratorium. Unless you changed it, the rate is the middle of each lender type\'s typical range; the comparison uses typical rates with your amount, moratorium and tenure. This is an illustration only - the lender sets the final rate, amount and terms.';
+      if (y > 262) { doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128);
+      doc.text(doc.splitTextToSize(note, W - 2 * M), M, y);
+
+      var pages = doc.getNumberOfPages();
+      for (var i = 1; i <= pages; i++) {
+        doc.setPage(i); doc.setFontSize(8); doc.setTextColor(156, 163, 175);
+        doc.text('FundMyCampus - www.fundmycampus.com/medical-education-loan', M, 290);
+        doc.text('Page ' + i + ' of ' + pages, W - M, 290, { align: 'right' });
+      }
+      doc.save('FundMyCampus-repayment-plan-' + p.course + '-' + TYPE_META[repayType].name.replace(/\s+/g, '-') + '.pdf');
+      track('repayment_pdf_downloaded', { lender_type: repayType, course: p.course });
+      btn.disabled = false; btn.innerHTML = label;
+    }).catch(function () {
+      btn.disabled = false; btn.textContent = 'Couldn\'t create PDF — tap to retry';
+    });
   }
 
   // Exact engine routes, shown under the lender-type ratings once the profile is complete
@@ -827,12 +1074,17 @@ var Checker = (function () {
     $('result-preview').hidden = true;
     var gate = p.studentCibilStatus === 'known' && Number.isInteger(p.studentCibil) && p.studentCibil >= 300 && p.studentCibil <= 900
       ? LoanEngine.creditGate(p) : null;
+    lastGate = gate;
+    // A new amount, course, destination or tenure in the form starts a fresh plan; other recomputes keep the student's edits
+    var base = [p.amount, p.course, p.destination, p.tenure].join('|');
+    if (base !== repayBase) { repayOv = {}; repayBase = base; }
     var d = Doability.assess(Object.assign({}, p, { creditGate: gate }));
     lastDoability = d;
     var res = g.need.length ? null : LoanEngine.assess(p);
     lastResult = res;
 
-    var html = doabilityHtml(d);
+    var html = doabilityHtml(d, p);
+    if (res && !res.incomplete) html += repaymentHtml(d, p);
     if (res) html += routesSection(res, p);
     else html += '<div class="next-steps"><div class="others-title">Fill these to see exact loan types</div><ul class="need-list">' +
       g.need.slice(0, 4).map(function (n) { return '<li><button type="button" data-focus="' + n.id + '">' + escHtml(n.text) + '</button></li>'; }).join('') + '</ul></div>';
