@@ -29,6 +29,8 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 | `engine.js` | Decision engine, verbatim from spec Appendix E (`LoanEngine.assess`) |
 | `medical-data.js` | GENERATED — 2,664 institutions (906 NMC, 330 DCI, 1,441 QHEI incl. 16 additions) |
 | `script.js` | Checker UI, institution combobox, results, lead capture, map, compare |
+| `doability.js` | Loan doability by lender type (Government banks / Private banks / NBFCs): hard rules + weighted factors. Basis: `reports/Medical loan rules by lender type.md` (research, Oct 2026, not in git) |
+| `tests/doability.cjs` | Doability checks — run `node tests/doability.cjs` |
 | `india-map.js` / `india-map.svg` | Interactive map; clickable states derived from the data passed in |
 | `tools/build-data.py` | Regenerates `medical-data.js` from spec Appendices A–D |
 | `tests/eligibility.cjs` | Spec Appendix F scenario tests — run `node tests/eligibility.cjs` (37 groups) |

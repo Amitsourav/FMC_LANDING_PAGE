@@ -123,6 +123,7 @@ var Checker = (function () {
   var manualMode = false;
   var coapps = [];
   var lastResult = null;
+  var lastDoability = null;
   var lastProfile = null;
   var started = false;
   var completedOnce = false;
@@ -532,6 +533,17 @@ var Checker = (function () {
   }
 
   resultBody.addEventListener('click', function (e) {
+    var connect = e.target.closest('.lt-connect');
+    if (connect) {
+      leadInterest = connect.getAttribute('data-type');
+      var panel = $('lead-panel');
+      panel.hidden = false;
+      panel.querySelector('h3').textContent = 'Talk to a counsellor about ' + TYPE_META[leadInterest].name;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function () { $('lead-name').focus(); }, 300);
+      track('counsellor_connect_clicked', { lender_type: leadInterest });
+      return;
+    }
     var id = e.target.getAttribute('data-focus');
     if (!id) return;
     var el = $(id);
@@ -650,16 +662,56 @@ var Checker = (function () {
     return steps.slice(0, 3);
   }
 
-  function render(res, p) {
+  // ─── Loan doability by lender type (doability.js) ───
+  var TYPE_META = {
+    psu: { name: 'Government banks', partners: 'e.g. PNB, Union Bank',
+      icon: '<path d="M4 10L16 4l12 6z" fill="#99F6E4" stroke="#0A2334" stroke-width="1.6" stroke-linejoin="round"/><g fill="#fff" stroke="#0A2334" stroke-width="1.6"><rect x="7" y="11" width="3" height="10"/><rect x="14.5" y="11" width="3" height="10"/><rect x="22" y="11" width="3" height="10"/></g><rect x="4" y="21" width="24" height="4" rx="1" fill="#0D9488" stroke="#0A2334" stroke-width="1.6"/>',
+      facts: { 'Interest': 'About 7.15%–10.15%', 'Property': 'Not needed up to ₹7.5 lakh; full cover above', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Slower, branch-based' },
+      pmvFacts: { 'Interest': 'About 7.15%–8.65% (PM-Vidyalaxmi)', 'Property': 'Not needed', 'While studying': 'Nothing to pay (course + 1 year)', 'Decision time': 'Slower, branch-based' } },
+    pvt: { name: 'Private banks', partners: 'e.g. ICICI Bank, Axis Bank, IDFC First, Yes Bank',
+      icon: '<rect x="4" y="8" width="24" height="17" rx="3" fill="#CCFBF1" stroke="#0A2334" stroke-width="1.6"/><rect x="4" y="12" width="24" height="3" fill="#0D9488"/><rect x="8" y="19" width="8" height="2.5" rx="1" fill="#0A2334"/>',
+      facts: { 'Interest': 'About 8.75%–14%', 'Property': 'Not needed at their select colleges; otherwise yes', 'While studying': 'Often interest or part-interest', 'Decision time': 'About 1–2 weeks' } },
+    nbfc: { name: 'NBFCs', partners: 'e.g. Credila, Avanse, Tata Capital, Auxilo, Poonawalla',
+      icon: '<circle cx="16" cy="16" r="11" fill="#FBBF24" stroke="#0A2334" stroke-width="1.6"/><path d="M17.5 8l-6 9h5l-2 7 6-9h-5z" fill="#0A2334"/>',
+      facts: { 'Interest': 'About 9.5%–14%', 'Property': 'Often not needed (₹50 lakh+ unsecured advertised)', 'While studying': 'Usually interest or part-payment', 'Decision time': 'Fastest — a few days' } }
+  };
+  var leadInterest = null;
+
+  function doabilityHtml(d) {
+    var types = ['psu', 'pvt', 'nbfc'];
+    var html = '';
+    if (d.best) {
+      var b = d[d.best];
+      html += '<div class="verdict verdict-' + (b.level >= 3 ? 'good' : 'warn') + '"><span class="verdict-icon">' + (b.level >= 3 ? '&#10003;' : '!') + '</span><div><h3>Best chance: ' + TYPE_META[d.best].name + '</h3><p>Loan doability <strong>' + b.label + '</strong>. Ratings update as you change any answer.</p></div></div>';
+    } else {
+      html += '<div class="verdict verdict-bad"><span class="verdict-icon">&times;</span><div><h3>No lender type fits right now</h3><p>A counsellor can look at your case and suggest what to change.</p></div></div>';
+    }
+    if (d.partial) html += '<p class="dz-partial">Estimate so far — add CIBIL scores and income in step 3 for a sharper rating.</p>';
+    html += '<div class="lt-list">' + types.map(function (t) {
+      var r = d[t], m = TYPE_META[t], facts = r.pmv && m.pmvFacts ? m.pmvFacts : m.facts;
+      var meter = '';
+      for (var i = 1; i <= 4; i++) meter += '<span' + (i <= r.level ? ' class="on"' : '') + '></span>';
+      return '<article class="lt-card lt-' + r.band + (d.best === t ? ' lt-best' : '') + '">' +
+        (d.best === t ? '<div class="lt-flag">Best chance</div>' : '') +
+        '<div class="lt-top"><svg class="lt-icon" viewBox="0 0 32 32" aria-hidden="true">' + m.icon + '</svg><div><h4>' + m.name + '</h4><small>' + m.partners + '</small></div></div>' +
+        '<div class="lt-rating"><span class="lt-label">Loan doability</span><strong class="lt-band">' + r.label + '</strong></div>' +
+        '<div class="lt-meter" role="img" aria-label="Loan doability ' + r.label + '">' + meter + '</div>' +
+        '<ul class="lt-reasons">' + r.reasons.map(function (x) { return '<li class="lr-' + x.tone + '">' + escHtml(x.text) + '</li>'; }).join('') + '</ul>' +
+        '<dl class="lt-facts">' + Object.keys(facts).map(function (k) { return '<div><dt>' + k + '</dt><dd>' + escHtml(facts[k]) + '</dd></div>'; }).join('') + '</dl>' +
+        '<button type="button" class="lt-connect" data-type="' + t + '">Connect with a counsellor &rarr;</button>' +
+        '</article>';
+    }).join('') + '</div>';
+    html += '<p class="dz-method">Ratings are FundMyCampus estimates from each lender type\'s published rules (Oct 2026) and your answers — not an approval. The lender decides.</p>';
+    return html;
+  }
+
+  // Exact engine routes, shown under the lender-type ratings once the profile is complete
+  function routesSection(res, p) {
     var credit = res.credit;
     var html = '';
 
     if (res.incomplete) {
-      var bad = credit && credit.invalid;
-      html += '<div class="verdict verdict-warn"><span class="verdict-icon">!</span><div><h3>' + (bad ? 'Please check the CIBIL scores' : 'A little more information needed') + '</h3><p>' + escHtml(res.message) + '</p></div></div>';
-      resultBody.innerHTML = html;
-      actions.hidden = true;
-      return;
+      return '<div class="warn-box">' + escHtml(res.message) + '</div>';
     }
 
     var routes = res.routes.slice().sort(function (a, b) {
@@ -668,34 +720,18 @@ var Checker = (function () {
     var matches = routes.filter(function (r) { return r.status === 'match'; });
     var best = routes[0];
 
-    // 1. The one-line answer
-    var tone, head, sub;
-    if (credit.mode === 'blocked') {
-      tone = 'bad'; head = 'We can\'t suggest a loan right now';
-      sub = 'The student\'s CIBIL score is below 670. A counsellor can go through the credit report with you.';
-    } else if (matches.length) {
-      tone = 'good';
-      head = 'Good news — ' + matches.length + ' loan option' + (matches.length > 1 ? 's look' : ' looks') + ' possible';
-      sub = 'Best fit: <strong>' + escHtml(PLAIN[best.id].name) + '</strong>. ' + escHtml(PLAIN[best.id].line);
-    } else if (routes.some(function (r) { return r.status === 'review'; })) {
-      tone = 'warn'; head = 'Your options need a quick check';
-      sub = 'Something below needs confirming before we can say yes. A counsellor can usually sort it out quickly.';
-    } else {
-      tone = 'warn'; head = 'You don\'t fit the usual loans yet';
-      sub = 'Based on what you entered, no loan fits right now. Below is the closest option and what would change the answer.';
-    }
-    var icon = { good: '&#10003;', warn: '!', bad: '&times;' }[tone];
-    html += '<div class="verdict verdict-' + tone + '"><span class="verdict-icon">' + icon + '</span><div><h3>' + head + '</h3><p>' + sub + '</p></div></div>';
-
     // Notes that change the answer (wrong college/course pairing, quota exclusion)
     consistencyWarnings(p).concat((res.exclusions || []).map(function () {
       return 'Management / NRI quota seats can\'t use the government scheme loan. Other loans below can still work.';
     })).forEach(function (w) { html += '<div class="warn-box">' + escHtml(w) + '</div>'; });
 
-    // 2. Best option card
+    // What to do next (visible), then the exact routes (collapsible)
+    html += '<div class="next-steps"><div class="others-title">What to do next</div><ol>' +
+      nextSteps(res, p).map(function (s) { return '<li>' + escHtml(s) + '</li>'; }).join('') + '</ol></div>';
+    var routesHtml = '';
     if (best && credit.mode !== 'blocked') {
       var rate = shortRate(best);
-      html += '<article class="best-card best-' + best.status + '">' +
+      routesHtml += '<article class="best-card best-' + best.status + '">' +
         '<div class="best-label">' + (best.status === 'match' ? 'Best option for you' : 'Closest option') + '</div>' +
         '<div class="best-head"><h4>' + escHtml(PLAIN[best.id].name) + '</h4><span class="route-status st-' + best.status + '">' + PLAIN_STATUS[best.status] + '</span></div>' +
         (best.status !== 'match' ? '<p class="best-why">' + escHtml(plainReason(best, res, p)) + '</p>' : '') +
@@ -712,15 +748,13 @@ var Checker = (function () {
     // 3. Other options, one plain line each
     var others = routes.slice(credit.mode === 'blocked' ? 0 : 1);
     if (others.length) {
-      html += '<div class="others"><div class="others-title">Other options we checked</div>' + others.map(function (r) {
+      routesHtml += '<div class="others"><div class="others-title">Other options we checked</div>' + others.map(function (r) {
         return '<div class="opt-row"><div class="opt-top"><strong>' + escHtml(PLAIN[r.id].name) + '</strong><span class="route-status st-' + r.status + '">' + PLAIN_STATUS[r.status] + '</span></div>' +
           '<p>' + escHtml(plainReason(r, res, p)) + '</p></div>';
       }).join('') + '</div>';
     }
 
-    // 4. What to do next
-    html += '<div class="next-steps"><div class="others-title">What to do next</div><ol>' +
-      nextSteps(res, p).map(function (s) { return '<li>' + escHtml(s) + '</li>'; }).join('') + '</ol></div>';
+    if (routesHtml) html += '<details class="result-more"><summary>Exact loan types we checked</summary>' + routesHtml + '</details>';
 
     // 5. Everything technical, for counsellors and curious parents
     var cls = { normal: 'cg-normal', direct_only: 'cg-warn', review: 'cg-warn', blocked: 'cg-block' }[credit.mode] || 'cg-warn';
@@ -743,16 +777,10 @@ var Checker = (function () {
     details += '<p class="result-note">Example only: a regular EMI loan of ₹' + p.amount + ' lakh at ' + p.rate + '% over ' + p.tenure + ' years would be about ' + money(res.monthly) + '/month and need about ' + money(res.need) + '/month of family income (' + p.foir + '% of income towards EMIs). You can change these assumptions under "Illustration settings".</p>';
     details += '<ul class="notes-list">' + res.notes.map(function (n) { return '<li>' + escHtml(n) + '</li>'; }).join('') + '</ul>';
 
-    html += '<details class="result-more"><summary>See full details</summary>' + details + '</details>';
+    html += '<details class="result-more"><summary>Technical details for counsellors</summary>' + details + '</details>';
     html += '<details class="result-more"><summary>Documents to keep ready</summary><ul>' +
       res.docs.map(function (d) { return '<li>' + escHtml(d) + '</li>'; }).join('') + '</ul></details>';
-    html += '<p class="result-version">Indicative only — the lender decides the final loan. Checked ' + todayText() + ' · ' + escHtml(credit.ruleVersion) + ' · ' + PRODUCT_RULE_VERSION + '.</p>';
-
-    resultBody.innerHTML = html;
-
-    $('open-lead').textContent = matches.length ? 'Get my loan options reviewed' : 'Get help checking my options';
-    actions.hidden = false;
-    $('wa-share').href = waLink();
+    return html;
   }
 
   function todayText() {
@@ -774,22 +802,44 @@ var Checker = (function () {
     timer = setTimeout(recompute, 200);
   }
 
+  function basicsReady(p) {
+    if (!p.course || !inRange(p.amount, 1, 500)) return false;
+    return p.destination === 'India' ? !!(p.college && p.admission) : !!p.country;
+  }
+
   function recompute() {
     syncVisibility();
     var g = gather();
-    lastProfile = g.profile;
+    var p = g.profile;
+    lastProfile = p;
     renderProgress(g);
-    if (g.need.length) {
-      lastResult = null;
+    if (!basicsReady(p) || typeof Doability === 'undefined') {
+      lastResult = null; lastDoability = null;
+      $('result-preview').hidden = false;
       renderNeed(g.need);
       updateJump();
       return;
     }
-    var res = LoanEngine.assess(g.profile);
+    $('result-preview').hidden = true;
+    var gate = p.studentCibilStatus === 'known' && Number.isInteger(p.studentCibil) && p.studentCibil >= 300 && p.studentCibil <= 900
+      ? LoanEngine.creditGate(p) : null;
+    var d = Doability.assess(Object.assign({}, p, { creditGate: gate }));
+    lastDoability = d;
+    var res = g.need.length ? null : LoanEngine.assess(p);
     lastResult = res;
-    render(res, g.profile);
+
+    var html = doabilityHtml(d);
+    if (res) html += routesSection(res, p);
+    else html += '<div class="next-steps"><div class="others-title">Fill these to see exact loan types</div><ul class="need-list">' +
+      g.need.slice(0, 4).map(function (n) { return '<li><button type="button" data-focus="' + n.id + '">' + escHtml(n.text) + '</button></li>'; }).join('') + '</ul></div>';
+    html += '<p class="result-version">Indicative only — the lender decides the final loan. Checked ' + todayText() + '.</p>';
+    resultBody.innerHTML = html;
+    $('open-lead').textContent = 'Get my loan options reviewed';
+    actions.hidden = false;
+    $('wa-share').href = waLink();
     updateJump();
-    if (!res.incomplete) {
+    track('doability_shown', { psu: d.psu.band, pvt: d.pvt.band, nbfc: d.nbfc.band });
+    if (res && !res.incomplete) {
       var routes = res.routes.map(function (r) { return r.id + ':' + r.status; }).join(',');
       if (!completedOnce) {
         completedOnce = true;
@@ -829,8 +879,8 @@ var Checker = (function () {
 
   // ─── Summary (copy / WhatsApp / print / lead) ───
   function summaryText() {
-    var p = lastProfile, res = lastResult;
-    if (!p || !res) return '';
+    var p = lastProfile, res = lastResult, d = lastDoability;
+    if (!p || !d) return '';
     var lines = ['FundMyCampus medical loan check — ' + todayText()];
     lines.push('Course: ' + p.course + ' (' + (p.level === 'Masters' ? 'PG' : 'UG') + '), ' + p.destination + (p.country ? ' — ' + p.country : ''));
     if (p.destination === 'India' && p.college) {
@@ -840,16 +890,20 @@ var Checker = (function () {
     if (p.foreignCollege) lines.push('University: ' + p.foreignCollege);
     lines.push('Loan needed: ₹' + p.amount + ' lakh; collateral: ' + p.collateral + (p.collateral === 'yes' ? ' (~₹' + p.value + ' lakh, unverified)' : ''));
     if (p.destination === 'India' && p.level === 'Masters') lines.push('PG stipend: ' + money(p.stipend) + '/month');
-    lines.push('Student CIBIL (self-reported): ' + (p.studentCibilStatus === 'known' ? p.studentCibil : p.studentCibilStatus.replace('_', ' ')));
+    lines.push('Student CIBIL (self-reported): ' + (p.studentCibilStatus === 'known' ? p.studentCibil : (p.studentCibilStatus || 'not given').replace('_', ' ')));
     p.coApplicants.forEach(function (c, i) {
-      lines.push('Co-applicant ' + (i + 1) + ': ' + c.relationship + ', CIBIL ' + (c.cibilStatus === 'known' ? c.cibil : c.cibilStatus.replace('_', ' ')) + ' (self-reported), income ' + (p.profile === 'none' ? 'not documented' : money(p.incomes[i]) + '/month'));
+      lines.push('Co-applicant ' + (i + 1) + ': ' + (c.relationship || 'not given') + ', CIBIL ' + (c.cibilStatus === 'known' ? c.cibil : (c.cibilStatus || 'not given').replace('_', ' ')) + ' (self-reported), income ' + (p.profile === 'none' ? 'not documented' : money(p.incomes[i]) + '/month'));
     });
-    lines.push('Credit screen: ' + res.credit.mode);
-    (res.exclusions || []).forEach(function (x) { lines.push('Excluded: ' + x); });
-    lines.push('Routes:');
-    if (!res.routes.length) lines.push('- None offered under current screening rules');
-    res.routes.forEach(function (r) { lines.push('- ' + PLAIN[r.id].name + ': ' + PLAIN_STATUS[r.status] + ' (while studying: ' + payText(r) + ')'); });
-    lines.push('Rules: ' + res.credit.ruleVersion + ', products ' + PRODUCT_RULE_VERSION + ', data ' + MED_META.dataVersion);
+    lines.push('Loan doability: Government banks ' + d.psu.label + ' · Private banks ' + d.pvt.label + ' · NBFCs ' + d.nbfc.label);
+    if (leadInterest) lines.push('Interested in: ' + TYPE_META[leadInterest].name);
+    if (res && !res.incomplete) {
+      lines.push('Credit screen: ' + res.credit.mode);
+      (res.exclusions || []).forEach(function (x) { lines.push('Excluded: ' + x); });
+      lines.push('Loan types:');
+      if (!res.routes.length) lines.push('- None offered under current screening rules');
+      res.routes.forEach(function (r) { lines.push('- ' + PLAIN[r.id].name + ': ' + PLAIN_STATUS[r.status] + ' (while studying: ' + payText(r) + ')'); });
+      lines.push('Rules: ' + res.credit.ruleVersion + ', products ' + PRODUCT_RULE_VERSION + ', data ' + MED_META.dataVersion);
+    }
     lines.push('Indicative screening only — not a lender decision.');
     return lines.join('\n');
   }
@@ -944,6 +998,9 @@ var Checker = (function () {
     },
     profile: function () { return lastProfile; },
     result: function () { return lastResult; },
+    doability: function () { return lastDoability; },
+    interest: function () { return leadInterest; },
+    clearInterest: function () { leadInterest = null; },
     summary: summaryText,
     waLink: waLink
   };
@@ -998,6 +1055,8 @@ var Lead = (function () {
   if (!form) return { reset: function () {} };
 
   $('open-lead').addEventListener('click', function () {
+    Checker.clearInterest();
+    panel.querySelector('h3').textContent = 'Get a counsellor to review this';
     panel.hidden = false;
     $('lead-name').focus();
   });
@@ -1015,9 +1074,12 @@ var Lead = (function () {
   }
 
   function assessmentPayload() {
-    var p = Checker.profile(), res = Checker.result();
-    if (!p || !res) return null;
+    var p = Checker.profile(), res = Checker.result(), d = Checker.doability();
+    if (!p || !d) return null;
+    var done = res && !res.incomplete;
     return {
+      doability: { government_banks: d.psu.band, private_banks: d.pvt.band, nbfcs: d.nbfc.band, best: d.best },
+      lender_type_interest: Checker.interest(),
       destination: p.destination, country: p.country || null, level: p.level, course: p.course,
       institution: p.college ? { id: p.college.id, name: p.college.name, state: p.college.state || null, aishe: p.college.aishe || null, evidence_status: p.college.evidenceStatus } : null,
       foreign_university: p.foreignCollege || null,
@@ -1025,12 +1087,12 @@ var Lead = (function () {
       loan_amount_inr: Math.round(p.amount * 100000),
       collateral: p.collateral, collateral_value_inr: p.collateral === 'yes' ? Math.round(p.value * 100000) : null,
       stipend_monthly_inr: p.stipend,
-      income_profile: p.profile, coapplicant_income_monthly_inr: res.income, existing_emi_monthly_inr: p.existing,
+      income_profile: p.profile, coapplicant_income_monthly_inr: p.incomes.reduce(function (a, b) { return a + (b || 0); }, 0), existing_emi_monthly_inr: p.existing,
       student_cibil_status: p.studentCibilStatus, student_cibil_self_reported: p.studentCibil,
       coapplicants: p.coApplicants.map(function (c, i) { return { relationship: c.relationship, cibil_status: c.cibilStatus, cibil_self_reported: c.cibil, income_monthly_inr: p.incomes[i] }; }),
-      credit_gate: res.credit.mode, parent_qualifies: res.credit.parentQualifies, credit_rule_version: res.credit.ruleVersion,
-      exclusions: res.exclusions || [],
-      routes: res.routes.map(function (r) { return { id: r.id, status: r.status }; }),
+      credit_gate: done ? res.credit.mode : null, parent_qualifies: done ? res.credit.parentQualifies : null, credit_rule_version: done ? res.credit.ruleVersion : null,
+      exclusions: done ? res.exclusions || [] : [],
+      routes: done ? res.routes.map(function (r) { return { id: r.id, status: r.status }; }) : [],
       product_rule_version: PRODUCT_RULE_VERSION, data_version: MED_META.dataVersion,
       summary: Checker.summary()
     };
