@@ -118,7 +118,6 @@ var Checker = (function () {
   };
   var RELATIONSHIPS = [['parent', 'Parent (mother / father)'], ['guardian', 'Guardian'], ['spouse', 'Spouse'], ['other', 'Other']];
   var CIBIL_STATUS = [['', 'CIBIL status'], ['known', 'Known score'], ['unknown', "Don't know"], ['no_history', 'No history (NH / NA)']];
-  var STATUS_LABEL = { match: 'Potential route', review: 'Needs lender review', gap: 'Requirement gap' };
 
   var selected = null;       // institution record from INST
   var manualMode = false;
@@ -543,34 +542,192 @@ var Checker = (function () {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
+  // ─── Plain-language result ───
+  // Each engine route gets a student-friendly name, a one-line meaning and an
+  // everyday reason. The technical cards stay available under "See full details".
+  var PLAIN = {
+    pmv: { name: 'Government scheme loan (PM-Vidyalaxmi)', line: '₹0 to pay while studying, and no property needed.' },
+    verify: { name: 'Government scheme loan — needs a check', line: 'Your college may qualify for the PM-Vidyalaxmi scheme.' },
+    si: { name: 'Interest-only loan', line: 'Pay only the interest while you study; the full EMI starts after.' },
+    pg: { name: 'PG stipend-friendly loan', line: 'A small fixed monthly payment during PG, set by your loan size.' },
+    emi: { name: 'Regular EMI loan', line: 'The full EMI starts from the first disbursement.' },
+    public: { name: 'Bank loan against property', line: 'A bank loan secured by family property.' },
+    country: { name: 'Study-abroad loan — country check', line: 'We match lenders that fund your country and university.' },
+    credit_review: { name: 'Credit score check first', line: 'A counsellor needs to look at the CIBIL scores before suggesting a loan.' }
+  };
+  var PLAIN_STATUS = { match: 'Looks possible', review: 'Needs a quick check', gap: 'Not a fit yet' };
+  var ROUTE_ORDER = ['pmv', 'si', 'pg', 'verify', 'emi', 'country', 'public', 'credit_review'];
+  var STATUS_ORDER = { match: 0, review: 1, gap: 2 };
+
+  function lakh(n) { return '₹' + (Math.round(n * 100) / 100) + ' lakh'; }
+
+  // One plain sentence explaining this route's status for this student
+  function plainReason(r, res, p) {
+    var inc = res.income;
+    var incomeGap = function (need) {
+      return inc > 0
+        ? 'Needs family income of about ' + money(need) + '/month — you entered ' + money(inc) + '.'
+        : 'Needs an earning parent or co-applicant with about ' + money(need) + '/month income.';
+    };
+    if (r.status === 'match') return PLAIN[r.id] ? PLAIN[r.id].line : r.reason;
+    if (r.status === 'gap') {
+      if (r.id === 'si') return incomeGap(r.requiredIncome) + ' A student stipend can\'t be counted here.';
+      if (r.id === 'emi') {
+        if (r.security === 'Collateral required' && !res.secured) return 'Needs property worth at least ' + lakh(p.amount) + ' as collateral.';
+        return incomeGap(r.requiredIncome);
+      }
+      if (r.id === 'public') return 'Needs family property worth about ' + lakh(p.amount) + '.';
+      if (r.id === 'pg') return 'Stipend + family income should be at least ' + money(r.requiredIncome) + '/month — you have ' + money(inc + (p.stipend || 0)) + '.';
+      return r.reason;
+    }
+    // review
+    if (r.id === 'si') return 'Possible — the lender needs to check self-employed or business income.';
+    if (r.id === 'pg') return r.requiredIncome == null
+      ? 'Possible — the lender checks your stipend and family income.'
+      : 'Possible — your stipend + family income meets the usual level; the lender confirms it.';
+    if (r.id === 'verify') return p.college && p.college.qheiStatus === 'pending'
+      ? 'We need to confirm whether your college is on the scheme list.'
+      : 'Your college is on the scheme list — we need to confirm your exact campus and NEET merit admission.';
+    if (r.id === 'emi') return 'Possible, but at least one parent with CIBIL 701 or more is needed — a counsellor will check.';
+    if (r.id === 'public') return 'Your property value covers the loan — the bank will do its own valuation.';
+    if (r.id === 'country') return 'We\'ll check which lenders fund your country and university.';
+    if (r.id === 'credit_review') return res.credit.student === null
+      ? 'The student\'s CIBIL score is unknown or has no history. A counsellor can check it with you.'
+      : 'At least one parent needs a CIBIL score of 701 or more. A counsellor can check the options.';
+    return r.reason;
+  }
+
+  function afterStudy(r) {
+    if (r.id === 'si' && r.futureEmi) return money(r.futureEmi) + '/month';
+    if (r.id === 'emi' && r.payment) return money(r.payment) + '/month';
+    if (r.id === 'pmv') return 'Bank\'s EMI, up to 15 yrs';
+    if (r.id === 'pg') return 'Full EMI after PG';
+    return 'Bank decides';
+  }
+
+  function propertyNeeded(r, res) {
+    if (r.id === 'pmv') return 'No';
+    if (r.id === 'public') return 'Yes';
+    if (r.id === 'emi') return r.security === 'Collateral required' ? 'Yes' : 'Not always';
+    if (r.id === 'si' || r.id === 'pg') return res.secured ? 'Yes (you offered it)' : 'No';
+    return 'To be confirmed';
+  }
+
+  function shortRate(r) {
+    if (!r.rate) return '';
+    if (r.id === 'si') return r.rate.replace(' campaign rate, subject to confirmation', '') + ' (offer till 15 Nov 2026)';
+    if (r.id === 'pmv') return 'Linked to the bank\'s rate (' + r.rate + ')';
+    return r.rate;
+  }
+
+  function plainFee(fee) {
+    if (/^Nil/.test(fee)) return 'No processing fee';
+    return 'Processing fee ' + fee.replace('applicable GST', 'GST');
+  }
+
+  function plainBenefit(b) {
+    return {
+      csis_review: 'Your family income may qualify for full interest support while studying, on up to ₹10 lakh of the loan.',
+      pmv_3: 'Your family income may qualify for 3% interest support while studying, on up to ₹10 lakh of the loan.',
+      excluded: 'Another government scholarship or benefit may rule out interest support — a counsellor will check.',
+      review: 'Tip: add your family income in step 4 to see if you also get interest support.'
+    }[b.kind] || '';
+  }
+
+  function nextSteps(res, p) {
+    var steps = [];
+    var gaps = res.routes.filter(function (r) { return r.status === 'gap'; });
+    var has = function (id, st) { return res.routes.some(function (r) { return r.id === id && (!st || r.status === st); }); };
+    if (res.credit.mode === 'blocked') steps.push('Get the student\'s CIBIL report and share it with a counsellor.');
+    if (res.credit.mode === 'review' && res.credit.student === null) steps.push('Check the student\'s CIBIL score (free at cibil.com), or ask a counsellor to help.');
+    if (res.credit.mode === 'direct_only') steps.push('A student CIBIL above 700 opens more loan types, including ₹0-during-study options.');
+    if (has('verify')) steps.push('Confirm your exact campus and that your seat came through NEET merit counselling.');
+    var noFit = !res.routes.some(function (r) { return r.status === 'match'; });
+    if (noFit && gaps.some(function (r) { return Number.isFinite(r.requiredIncome); }) && p.coApplicants.length < 4) steps.push('Add another earning co-applicant (for example, the second parent) to raise family income.');
+    if (noFit && gaps.some(function (r) { return r.id === 'public' || r.security === 'Collateral required'; }) && p.collateral !== 'yes') steps.push('If your family owns property, choose "Yes" for collateral to see secured options.');
+    if (res.routes.some(function (r) { return r.status === 'match'; })) steps.push('Keep your admission letter and fee schedule ready, and let a counsellor confirm the lender and rate.');
+    if (!steps.length) steps.push('Share this result with a counsellor — they can suggest what to change.');
+    return steps.slice(0, 3);
+  }
+
   function render(res, p) {
     var credit = res.credit;
     var html = '';
-    if (credit) {
-      var cls = { normal: 'cg-normal', direct_only: 'cg-warn', review: 'cg-warn', blocked: 'cg-block' }[credit.mode] || 'cg-warn';
-      var title = { normal: 'Credit screen: normal', direct_only: 'Credit screen: direct EMI only', review: 'Credit screen: review needed', blocked: 'Credit screen: no route offered' }[credit.mode];
-      if (credit.invalid) { cls = 'cg-warn'; title = 'Check the scores entered'; }
-      html += '<div class="credit-gate ' + cls + '"><strong>' + title + '</strong><p>' + escHtml(credit.message) + '</p></div>';
-    }
 
     if (res.incomplete) {
-      html += '<p class="result-empty">' + escHtml(res.message) + '</p>';
+      var bad = credit && credit.invalid;
+      html += '<div class="verdict verdict-warn"><span class="verdict-icon">!</span><div><h3>' + (bad ? 'Please check the CIBIL scores' : 'A little more information needed') + '</h3><p>' + escHtml(res.message) + '</p></div></div>';
       resultBody.innerHTML = html;
       actions.hidden = true;
       return;
     }
 
-    consistencyWarnings(p).forEach(function (w) { html += '<div class="warn-box">' + escHtml(w) + '</div>'; });
+    var routes = res.routes.slice().sort(function (a, b) {
+      return STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || ROUTE_ORDER.indexOf(a.id) - ROUTE_ORDER.indexOf(b.id);
+    });
+    var matches = routes.filter(function (r) { return r.status === 'match'; });
+    var best = routes[0];
 
-    (res.exclusions || []).forEach(function (x) { html += '<div class="warn-box">' + escHtml(x) + '</div>'; });
+    // 1. The one-line answer
+    var tone, head, sub;
+    if (credit.mode === 'blocked') {
+      tone = 'bad'; head = 'We can\'t suggest a loan right now';
+      sub = 'The student\'s CIBIL score is below 670. A counsellor can go through the credit report with you.';
+    } else if (matches.length) {
+      tone = 'good';
+      head = 'Good news — ' + matches.length + ' loan option' + (matches.length > 1 ? 's look' : ' looks') + ' possible';
+      sub = 'Best fit: <strong>' + escHtml(PLAIN[best.id].name) + '</strong>. ' + escHtml(PLAIN[best.id].line);
+    } else if (routes.some(function (r) { return r.status === 'review'; })) {
+      tone = 'warn'; head = 'Your options need a quick check';
+      sub = 'Something below needs confirming before we can say yes. A counsellor can usually sort it out quickly.';
+    } else {
+      tone = 'warn'; head = 'You don\'t fit the usual loans yet';
+      sub = 'Based on what you entered, no loan fits right now. Below is the closest option and what would change the answer.';
+    }
+    var icon = { good: '&#10003;', warn: '!', bad: '&times;' }[tone];
+    html += '<div class="verdict verdict-' + tone + '"><span class="verdict-icon">' + icon + '</span><div><h3>' + head + '</h3><p>' + sub + '</p></div></div>';
 
-    if (!res.routes.length) {
-      html += '<div class="route route-gap"><p>No loan route is offered under the current FundMyCampus screening rules. A counsellor can review your credit report.</p></div>';
+    // Notes that change the answer (wrong college/course pairing, quota exclusion)
+    consistencyWarnings(p).concat((res.exclusions || []).map(function () {
+      return 'Management / NRI quota seats can\'t use the government scheme loan. Other loans below can still work.';
+    })).forEach(function (w) { html += '<div class="warn-box">' + escHtml(w) + '</div>'; });
+
+    // 2. Best option card
+    if (best && credit.mode !== 'blocked') {
+      var rate = shortRate(best);
+      html += '<article class="best-card best-' + best.status + '">' +
+        '<div class="best-label">' + (best.status === 'match' ? 'Best option for you' : 'Closest option') + '</div>' +
+        '<div class="best-head"><h4>' + escHtml(PLAIN[best.id].name) + '</h4><span class="route-status st-' + best.status + '">' + PLAIN_STATUS[best.status] + '</span></div>' +
+        (best.status !== 'match' ? '<p class="best-why">' + escHtml(plainReason(best, res, p)) + '</p>' : '') +
+        '<div class="kpis">' +
+        '<div><span>While studying</span><strong>' + escHtml(best.payment === 0 ? '₹0' : best.payment == null ? 'Bank decides' : money(best.payment) + '/month') + '</strong></div>' +
+        '<div><span>After studies</span><strong>' + escHtml(afterStudy(best)) + '</strong></div>' +
+        '<div><span>Property needed?</span><strong>' + escHtml(propertyNeeded(best, res)) + '</strong></div>' +
+        '</div>' +
+        (rate ? '<p class="best-rate">Interest: ' + escHtml(rate) + (best.fee ? ' · ' + escHtml(plainFee(best.fee)) : '') + '</p>' : '') +
+        (res.benefit && best.id === 'pmv' && plainBenefit(res.benefit) ? '<p class="best-benefit">' + escHtml(plainBenefit(res.benefit)) + '</p>' : '') +
+        '</article>';
     }
 
+    // 3. Other options, one plain line each
+    var others = routes.slice(credit.mode === 'blocked' ? 0 : 1);
+    if (others.length) {
+      html += '<div class="others"><div class="others-title">Other options we checked</div>' + others.map(function (r) {
+        return '<div class="opt-row"><div class="opt-top"><strong>' + escHtml(PLAIN[r.id].name) + '</strong><span class="route-status st-' + r.status + '">' + PLAIN_STATUS[r.status] + '</span></div>' +
+          '<p>' + escHtml(plainReason(r, res, p)) + '</p></div>';
+      }).join('') + '</div>';
+    }
+
+    // 4. What to do next
+    html += '<div class="next-steps"><div class="others-title">What to do next</div><ol>' +
+      nextSteps(res, p).map(function (s) { return '<li>' + escHtml(s) + '</li>'; }).join('') + '</ol></div>';
+
+    // 5. Everything technical, for counsellors and curious parents
+    var cls = { normal: 'cg-normal', direct_only: 'cg-warn', review: 'cg-warn', blocked: 'cg-block' }[credit.mode] || 'cg-warn';
+    var details = '<div class="credit-gate ' + cls + '"><strong>Credit check</strong><p>' + escHtml(credit.message) + '</p></div>';
     res.routes.forEach(function (r) {
-      html += '<article class="route route-' + r.status + '">' +
-        '<div class="route-head"><h3>' + escHtml(r.title) + '</h3><span class="route-status st-' + r.status + '">' + STATUS_LABEL[r.status] + '</span></div>' +
+      details += '<article class="route route-' + r.status + '">' +
+        '<div class="route-head"><h3>' + escHtml(PLAIN[r.id].name) + '</h3><span class="route-status st-' + r.status + '">' + PLAIN_STATUS[r.status] + '</span></div>' +
         '<dl class="route-facts">' +
         '<div><dt>During study</dt><dd>' + escHtml(payText(r)) + '</dd></div>' +
         '<div><dt>Repayment</dt><dd>' + escHtml(r.repayment) + '</dd></div>' +
@@ -579,32 +736,21 @@ var Checker = (function () {
         (r.fee ? '<div><dt>Processing fee</dt><dd>' + escHtml(r.fee) + '</dd></div>' : '') +
         (r.margin ? '<div><dt>Margin</dt><dd>' + escHtml(r.margin) + '</dd></div>' : '') +
         (r.futureEmi ? '<div><dt>Later full EMI</dt><dd>' + money(r.futureEmi) + ' / month</dd></div>' : '') +
-        (Number.isFinite(r.requiredIncome) ? '<div><dt>Income screen</dt><dd>' + money(r.requiredIncome) + ' / month</dd></div>' : '') +
+        (Number.isFinite(r.requiredIncome) ? '<div><dt>Income needed</dt><dd>' + money(r.requiredIncome) + ' / month</dd></div>' : '') +
         '</dl><p class="route-reason">' + escHtml(r.reason) + '</p></article>';
     });
+    if (res.benefit) details += '<div class="benefit-box"><strong>Interest support</strong><p>' + escHtml(res.benefit.message) + '</p></div>';
+    details += '<p class="result-note">Example only: a regular EMI loan of ₹' + p.amount + ' lakh at ' + p.rate + '% over ' + p.tenure + ' years would be about ' + money(res.monthly) + '/month and need about ' + money(res.need) + '/month of family income (' + p.foir + '% of income towards EMIs). You can change these assumptions under "Illustration settings".</p>';
+    details += '<ul class="notes-list">' + res.notes.map(function (n) { return '<li>' + escHtml(n) + '</li>'; }).join('') + '</ul>';
 
-    if (res.benefit) {
-      html += '<div class="benefit-box"><strong>Interest support</strong><p>' + escHtml(res.benefit.message) + '</p></div>';
-    }
-
-    html += '<div class="figures">' +
-      '<div><span>Direct EMI illustration</span><strong>' + money(res.monthly) + '</strong></div>' +
-      '<div><span>Monthly simple interest</span><strong>' + money(res.si) + '</strong></div>' +
-      '<div><span>Co-applicant income</span><strong>' + (res.income > 0 ? money(res.income) : 'Income not available') + '</strong></div>' +
-      '<div><span>Direct-EMI income screen</span><strong>' + money(res.need) + '</strong></div>' +
-      '</div>' +
-      '<p class="result-note">At ' + p.rate + '% for ' + p.tenure + ' years, ' + p.foir + '% FOIR, on the full ₹' + p.amount + ' lakh. Staged disbursement changes actual interest; fees and taxes excluded.</p>';
-
-    html += '<details class="result-more"><summary>Conditions &amp; assumptions</summary><ul>' +
-      res.notes.map(function (n) { return '<li>' + escHtml(n) + '</li>'; }).join('') + '</ul></details>';
+    html += '<details class="result-more"><summary>See full details</summary>' + details + '</details>';
     html += '<details class="result-more"><summary>Documents to keep ready</summary><ul>' +
       res.docs.map(function (d) { return '<li>' + escHtml(d) + '</li>'; }).join('') + '</ul></details>';
-    html += '<p class="result-version">Checked ' + todayText() + ' · ' + escHtml(credit.ruleVersion) + ' · products ' + PRODUCT_RULE_VERSION + ' · ' + escHtml(MED_META.dataVersion) + '. Only a lender can sanction a loan.</p>';
+    html += '<p class="result-version">Indicative only — the lender decides the final loan. Checked ' + todayText() + ' · ' + escHtml(credit.ruleVersion) + ' · ' + PRODUCT_RULE_VERSION + '.</p>';
 
     resultBody.innerHTML = html;
 
-    var anyFit = res.routes.some(function (r) { return r.status === 'match'; });
-    $('open-lead').textContent = anyFit ? 'Get my loan options reviewed' : 'Get help checking my options';
+    $('open-lead').textContent = matches.length ? 'Get my loan options reviewed' : 'Get help checking my options';
     actions.hidden = false;
     $('wa-share').href = waLink();
   }
@@ -702,7 +848,7 @@ var Checker = (function () {
     (res.exclusions || []).forEach(function (x) { lines.push('Excluded: ' + x); });
     lines.push('Routes:');
     if (!res.routes.length) lines.push('- None offered under current screening rules');
-    res.routes.forEach(function (r) { lines.push('- ' + r.title + ': ' + STATUS_LABEL[r.status] + ' (during study: ' + payText(r) + ')'); });
+    res.routes.forEach(function (r) { lines.push('- ' + PLAIN[r.id].name + ': ' + PLAIN_STATUS[r.status] + ' (while studying: ' + payText(r) + ')'); });
     lines.push('Rules: ' + res.credit.ruleVersion + ', products ' + PRODUCT_RULE_VERSION + ', data ' + MED_META.dataVersion);
     lines.push('Indicative screening only — not a lender decision.');
     return lines.join('\n');
