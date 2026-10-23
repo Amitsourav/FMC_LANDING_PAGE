@@ -27,7 +27,8 @@ Previously this repo was the MBA landing page (served at `/education-loan-for-MB
 | `index.html` | Page structure, SEO meta, JSON-LD, static guide content |
 | `style.css` | All styles — teal (#0D9488) accent; checker styles at the end |
 | `engine.js` | Decision engine, verbatim from spec Appendix E (`LoanEngine.assess`) |
-| `medical-data.js` | GENERATED — 2,664 institutions (906 NMC, 330 DCI, 1,441 QHEI incl. 16 additions) |
+| `medical-data.js` | GENERATED — 2,601 picker records (906 NMC, 330 DCI, 1,441 QHEI incl. 16 additions; 76 NMC/DCI colleges carry their QHEI link, so they aren't listed twice) |
+| `tools/qhei-links.csv` | Reviewed college ↔ QHEI links the spec's match column missed (63, 23 Oct 2026). Same institution only — never link a college to its parent university's QHEI record. Add rows here, then rerun `tools/build-data.py` |
 | `script.js` | Checker UI, institution combobox, results, lead capture, map, compare |
 | `doability.js` | Loan doability by lender type (Government banks / Private banks / NBFCs): hard rules + weighted factors. Basis: `reports/Medical loan rules by lender type.md` (research, Oct 2026, not in git) |
 | `repayment.js` | Year-by-year repayment illustration per lender type (rates = middle of each card's range; Govt banks capitalise study interest, Private/NBFC pay simple interest while studying). Result shows it once all details are filled, with editable loan amount, interest rate, moratorium (months) and EMI tenure (edits change the plan + PDF only, not the ratings; they reset when the form's amount/course/destination/tenure change). The loan is stretched past the last fee payout if moratorium + tenure is too short; "Download PDF" builds a branded PDF with jsPDF 2.5.1 + autotable 3.8.2 (cdnjs, loaded on click) and the cropped `logo.png` |

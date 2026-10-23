@@ -5,7 +5,7 @@ Usage: python3 -I tools/build-data.py /path/to/FundMyCampus_Medical_Loan_Build_a
 Reads Appendices A-D (QHEI snapshot, NMC medical, DCI dental, owner-confirmed additions)
 and writes a compact public dataset. No lender identity is written to the output.
 """
-import json, os, re, sys
+import csv, json, os, re, sys
 
 STATE_FIX = {
     'Andaman And Nicobar Islands': 'Andaman and Nicobar Islands',
@@ -56,10 +56,20 @@ def main(path):
         aishe, name, st = row[0], row[1], row[2]
         qhei[aishe] = {'a': aishe, 'n': name, 's': state(st), 'x': 1}
 
+    # Reviewed college <-> QHEI links that the spec's match column misses (same institution only,
+    # never a parent university). See tools/qhei-links.csv.
+    extra = {}
+    links_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qhei-links.csv')
+    for row in csv.DictReader(open(links_path, encoding='utf-8')):
+        assert row['aishe'] in qhei, 'unknown AISHE in qhei-links.csv: ' + row['aishe']
+        assert row['aishe'] not in extra.values(), 'AISHE linked twice: ' + row['aishe']
+        extra[row['college_id']] = row['aishe']
+
     linked = set()
     records = []
     for row in t['B'][1]:
         iid, name, st, univ, mbbs, pg, match = row
+        match = match if match in qhei else extra.get(iid, match)
         r = {'i': iid, 'n': name, 's': state(st), 'd': 'M', 'u': univ,
              'mb': 1 if mbbs == 'Yes' else 0, 'pg': 1 if pg == 'Yes' else 0}
         if match in qhei:
@@ -68,6 +78,7 @@ def main(path):
         records.append(r)
     for row in t['C'][1]:
         iid, name, st, mgmt, seats, match = row
+        match = match if match in qhei else extra.get(iid, match)
         r = {'i': iid, 'n': name, 's': state(st), 'd': 'D'}
         if mgmt:
             r['m'] = mgmt
@@ -100,7 +111,8 @@ def main(path):
         'nmcAsOf': '2026-10-12', 'nmcCount': len(t['B'][1]),
         'dciSeatYear': '2025-26', 'dciCount': len(t['C'][1]),
         'pickerCount': len(records),
-        'dataVersion': 'FMC-MED-DATA-2026-10-14',
+        'reviewedLinks': len(extra),
+        'dataVersion': 'FMC-MED-DATA-2026-10-23',
     }
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'medical-data.js')
     with open(out, 'w', encoding='utf-8') as f:
